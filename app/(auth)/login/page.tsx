@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { DemoAccounts } from "@/components/auth/demo-accounts";
 import { LoginForm } from "@/components/auth/login-form";
+import { LogoMark } from "@/components/shared/logo-mark";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,6 +37,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
     <main className="flex flex-1 items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
+          <LogoMark className="mb-3 h-10 text-logo" />
           <CardTitle className="text-xl">Karta Lead Tracker</CardTitle>
           <CardDescription>Sign in to manage your leads.</CardDescription>
         </CardHeader>

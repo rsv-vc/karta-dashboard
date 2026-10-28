@@ -1,10 +1,10 @@
 "use client";
 
-import { TargetIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@/components/auth/user-provider";
 import { NavUser } from "@/components/layout/nav-user";
+import { LogoMark } from "@/components/shared/logo-mark";
 import {
   Sidebar,
   SidebarContent,
@@ -40,8 +40,8 @@ export function AppSidebar({ overdueCount }: { overdueCount: number }) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard" onClick={closeOnMobile}>
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <TargetIcon className="size-4" />
+                <div className="flex aspect-square size-8 items-center justify-center text-logo">
+                  <LogoMark className="h-7" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">Karta</span>
