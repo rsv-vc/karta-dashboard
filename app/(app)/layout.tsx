@@ -9,6 +9,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { mockUsers } from "@/data/mock-users";
 import { requireUser } from "@/lib/auth/dal";
 import { getFollowUpCounts } from "@/lib/data/leads";
+import { isDemoMode } from "@/lib/supabase/env";
 
 // Authenticated app shell. The session read lives inside Suspense (never a
 // top-level await in the layout). Pages still check access themselves via the
@@ -18,7 +19,7 @@ async function AuthGate({ children }: { children: ReactNode }) {
   const [user, followUps, cookieStore] = await Promise.all([requireUser(), getFollowUpCounts(), cookies()]);
   // shadcn's sidebar stores its open/collapsed state in this cookie.
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
-  const showSwitcher = process.env.NODE_ENV === "development";
+  const showSwitcher = process.env.NODE_ENV === "development" && isDemoMode();
 
   return (
     <UserProvider user={user}>

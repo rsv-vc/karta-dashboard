@@ -57,7 +57,8 @@ function detailsFrom(input: LeadFormValues) {
   };
 }
 
-function followUpIso(date: string): string | null {
+/** "YYYY-MM-DD" -> that day at 10:00 IST (follow-ups are day-level); "" -> null. */
+export function followUpIso(date: string): string | null {
   return date ? toIstIso(date, 10, 0) : null;
 }
 

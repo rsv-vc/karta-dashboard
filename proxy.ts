@@ -1,46 +1,30 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getUserById } from "@/data/mock-users";
-import { SESSION_COOKIE, getSessionSecret, verifySessionToken } from "@/lib/auth/session-token";
+import { updateSession, withSessionCookies } from "@/lib/supabase/proxy";
 
-// Optimistic route guard: redirects based on the session cookie alone. The real
-// authorization happens in the Data Access Layer (lib/auth/dal.ts), close to the data.
+// Refreshes the Supabase session on every request, then applies optimistic
+// redirects based on whether a session exists. The real authorization happens
+// in the Data Access Layer (lib/auth/dal.ts) and in the database (RLS).
 
-const PUBLIC_PATHS = ["/login", "/no-access"];
+const PUBLIC_PATHS = ["/login", "/no-access", "/auth/signout"];
 const PUBLIC_PREFIXES = ["/dev/"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.includes(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
-/** Same checks as the DAL (signature, expiry, active user) so the two never disagree and loop. */
-function hasValidSession(request: NextRequest): boolean {
-  const session = verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value, getSessionSecret());
-  if (!session) return false;
-  return getUserById(session.userId)?.status === "active";
-}
-
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
+  const { response, signedIn } = await updateSession(request);
   const { pathname, search } = request.nextUrl;
-  const signedIn = hasValidSession(request);
+  const redirectTo = (path: string) => withSessionCookies(response, NextResponse.redirect(new URL(path, request.url)));
 
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL(signedIn ? "/dashboard" : "/login", request.url));
-  }
-
-  if (pathname === "/login" && signedIn) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
+  if (pathname === "/") return redirectTo(signedIn ? "/dashboard" : "/login");
+  if (pathname === "/login" && signedIn) return redirectTo("/dashboard");
   if (!isPublic(pathname) && !signedIn) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname + search);
-    const response = NextResponse.redirect(loginUrl);
-    // Clear a tampered or expired cookie so the browser stops sending it.
-    if (request.cookies.has(SESSION_COOKIE)) response.cookies.delete(SESSION_COOKIE);
-    return response;
+    return withSessionCookies(response, NextResponse.redirect(loginUrl));
   }
-
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
