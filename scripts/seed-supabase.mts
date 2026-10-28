@@ -41,7 +41,11 @@ function check<T>(label: string, result: { data: T; error: { message: string } |
 }
 
 const admin = mockUsers.find((u) => u.role === "admin")!;
-check("sign in as admin", await supabase.auth.signInWithPassword({ email: admin.email, password: env("DEMO_PASSWORD") }));
+const signIn = await supabase.auth.signInWithPassword({ email: admin.email, password: env("DEMO_PASSWORD") });
+if (signIn.error) {
+  console.error(`✗ sign in as admin: ${signIn.error.message}`);
+  process.exit(1);
+}
 
 // Wipe (cascades to history and activities), then insert in dependency order.
 check("delete leads", await supabase.from("leads").delete().neq("id", ""));
@@ -73,7 +77,7 @@ const leads = back.map(toLead);
 const result = validateLeads(leads, { seedRules: true });
 
 console.log(`✓ ${leads.length} leads, ${rows.reduce((n, r) => n + r.history.length, 0)} history rows, ${rows.reduce((n, r) => n + r.activities.length, 0)} activities, ${targets.length} targets`);
-console.log(`✓ next lead id will be L-${seq + 1}`);
+console.log(`✓ next lead id will be L-${Number(seq) + 1}`);
 console.log(result.valid ? "✓ data read back from Supabase passes validation" : result.errors.slice(0, 10));
 await supabase.auth.signOut();
 if (!result.valid) process.exit(1);
