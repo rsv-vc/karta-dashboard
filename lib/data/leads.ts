@@ -6,7 +6,15 @@ import { TODAY, isActiveStage } from "@/lib/constants";
 import { STALE_AFTER_DAYS, computeAgentDashboard, type AgentDashboard } from "@/lib/dashboard/agent-metrics";
 import { buildFollowUpBoard, type FollowUpBoard } from "@/lib/dashboard/follow-ups";
 import { computeTeamDashboard, type TeamDashboard, type TeamPeriod } from "@/lib/dashboard/team-metrics";
-import { fetchAccessRules, fetchDirectory, fetchLead, fetchTargets, fetchTeam, fetchVisibleLeads } from "@/lib/data/repo";
+import {
+  fetchAccessRules,
+  fetchDirectory,
+  fetchLead,
+  fetchLeadSummaries,
+  fetchTargets,
+  fetchTeam,
+  fetchVisibleLeads,
+} from "@/lib/data/repo";
 import { daysBetween } from "@/lib/dates";
 import { toDirectoryRow, toLeadRow, type DirectoryRow, type LeadRow } from "@/lib/leads/rows";
 import { buildMonthlyReport, type MonthlyReport } from "@/lib/reports/monthly";
@@ -20,10 +28,11 @@ import type { Member } from "@/types/user";
 // current user itself, and the database's Row Level Security limits what each
 // query returns, so a caller can never widen its own view.
 
+/** Leads the viewer may see in full (without history/activities) plus masked directory entries for the rest. */
 export async function getVisibleLeads(): Promise<{ full: Lead[]; masked: LeadDirectoryEntry[] }> {
   const user = await requireUser();
   const [leads, directory] = await Promise.all([
-    fetchVisibleLeads(),
+    fetchLeadSummaries(),
     isAdmin(user) ? Promise.resolve([]) : fetchDirectory(),
   ]);
   // partitionLeadsForUser re-applies the app rule on top of RLS (defense in depth).
@@ -47,7 +56,7 @@ export interface FollowUpCounts {
 /** Follow-up buckets for the current user's leads (all leads for an admin). */
 export async function getFollowUpCounts(): Promise<FollowUpCounts> {
   const user = await requireUser();
-  const leads = await fetchVisibleLeads();
+  const leads = await fetchLeadSummaries();
   const { overdue, today, upcoming } = getFollowUpsDue(isAdmin(user) ? undefined : user.id, TODAY, leads);
   return { overdue: overdue.length, today: today.length, upcoming: upcoming.length };
 }
@@ -110,7 +119,7 @@ export async function getAgentDashboard(): Promise<AgentDashboard> {
 /** Follow-up queue: an agent's own leads; for admins every lead, optionally one owner's. */
 export async function getFollowUpBoard(ownerId?: string): Promise<FollowUpBoard> {
   const user = await requireUser();
-  const [all, team] = await Promise.all([fetchVisibleLeads(), fetchTeam()]);
+  const [all, team] = await Promise.all([fetchLeadSummaries(), fetchTeam()]);
   const leads = all.filter((l) => (isAdmin(user) ? !ownerId || l.ownerId === ownerId : l.ownerId === user.id));
   return buildFollowUpBoard(leads, TODAY, nameLookup(team));
 }

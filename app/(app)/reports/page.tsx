@@ -17,7 +17,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default function ReportsPage({ searchParams }: PageProps<"/reports">) {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<PageSkeleton layout="dashboard" />}>
       <ReportsContent searchParams={searchParams} />
     </Suspense>
   );

@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Settings · Karta Lead Tracker" };
 
 export default function SettingsPage() {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<PageSkeleton layout="cards" />}>
       <SettingsContent />
     </Suspense>
   );

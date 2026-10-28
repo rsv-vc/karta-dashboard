@@ -28,7 +28,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Skip Next internals, the generated home-screen icon, and any path with a
-  // file extension (static assets).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|apple-icon|.*\\..*).*)"],
+  // Skip Next internals, the generated icons and link preview, and any path
+  // with a file extension (static assets, manifest.webmanifest).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|apple-icon|opengraph-image|.*\\..*).*)"],
 };

@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Team · Karta Lead Tracker" };
 
 export default function TeamPage() {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<PageSkeleton layout="cards" />}>
       <TeamContent />
     </Suspense>
   );

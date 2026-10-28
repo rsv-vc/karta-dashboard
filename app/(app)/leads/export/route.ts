@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/auth/dal";
 import { partitionLeadsForUser } from "@/lib/auth/permissions";
 import { TODAY } from "@/lib/constants";
-import { fetchTeam, fetchVisibleLeads } from "@/lib/data/repo";
+import { fetchLeadSummaries, fetchTeam } from "@/lib/data/repo";
 import { filterLeadRows, parseLeadFilters } from "@/lib/leads/filters";
 import { toLeadRow } from "@/lib/leads/rows";
 import { leadsCsv } from "@/lib/reports/csv";
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   if (!user) return new Response("Not signed in", { status: 401 });
 
   const filters = parseLeadFilters(new URL(request.url).searchParams);
-  const [leads, team] = await Promise.all([fetchVisibleLeads(), fetchTeam()]);
+  const [leads, team] = await Promise.all([fetchLeadSummaries(), fetchTeam()]);
   const { full } = partitionLeadsForUser(user, leads);
   const nameOf = nameLookup(team);
   const keep = new Set(filterLeadRows(full.map((l) => toLeadRow(l, nameOf)), filters).map((r) => r.id));

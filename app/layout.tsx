@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/shared/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -18,6 +18,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Karta Lead Tracker",
   description: "Lead tracking dashboard for the sales team",
+  applicationName: "Karta",
+  appleWebApp: { title: "Karta", statusBarStyle: "default" },
+};
+
+// Browser chrome colour on phones follows the OS theme (the app's own toggle is applied after load).
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fbfaf6" },
+    { media: "(prefers-color-scheme: dark)", color: "#25241f" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

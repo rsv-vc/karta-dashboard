@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment } from "react";
 import { useUser } from "@/components/auth/user-provider";
+import { CommandMenu } from "@/components/layout/command-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
   Breadcrumb,
@@ -20,7 +21,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { canCreateLead } from "@/lib/auth/permissions";
 import { getBreadcrumbs } from "@/lib/navigation";
 
-/** Sticky top bar: sidebar toggle, breadcrumbs, "Add lead" and theme toggle. */
+/** Sticky top bar: sidebar toggle, breadcrumbs, search, "Add lead" and theme toggle. */
 export function AppHeader() {
   const user = useUser();
   const pathname = usePathname();
@@ -54,6 +55,7 @@ export function AppHeader() {
       </Breadcrumb>
 
       <div className="ml-auto flex items-center gap-1">
+        <CommandMenu />
         {canCreateLead(user) && (
           <Button asChild size="sm">
             <Link href="/leads/new" aria-label="Add lead">

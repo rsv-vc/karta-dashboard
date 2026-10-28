@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Add lead · Karta Lead Tracker" };
 
 export default function NewLeadPage() {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<PageSkeleton layout="form" />}>
       <NewLeadContent />
     </Suspense>
   );

@@ -36,7 +36,7 @@ export const metadata: Metadata = { title: "Lead · Karta Lead Tracker" };
 // the full record with actions, other agents only the masked directory entry.
 export default function LeadPage({ params }: PageProps<"/leads/[id]">) {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<PageSkeleton layout="detail" />}>
       <LeadContent params={params} />
     </Suspense>
   );

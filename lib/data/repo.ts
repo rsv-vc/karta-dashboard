@@ -62,6 +62,17 @@ export const fetchVisibleLeads = cache(async (): Promise<Lead[]> => {
   return (data as unknown as LeadDbRowWithRelations[]).map(toLead);
 });
 
+/**
+ * The same leads without stage history or activities, for lists, counts and
+ * follow-up queues that never read them (much less data per request).
+ */
+export const fetchLeadSummaries = cache(async (): Promise<Lead[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("leads").select("*").order("id");
+  if (error) fail("leads", error);
+  return data.map((row) => toLead({ ...row, lead_stage_history: [], lead_activities: [] }));
+});
+
 /** One lead if this user may see it in full, else null. */
 export const fetchLead = cache(async (id: string): Promise<Lead | null> => {
   const supabase = await createClient();

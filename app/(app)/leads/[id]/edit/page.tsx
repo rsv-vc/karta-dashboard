@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Edit lead · Karta Lead Tracker" };
 
 export default function EditLeadPage({ params }: PageProps<"/leads/[id]/edit">) {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<PageSkeleton layout="form" />}>
       <EditLeadContent params={params} />
     </Suspense>
   );

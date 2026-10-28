@@ -26,7 +26,7 @@ const EMPTY_TEXT = {
 
 export default function FollowUpsPage({ searchParams }: PageProps<"/follow-ups">) {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<PageSkeleton layout="table" />}>
       <FollowUpsContent searchParams={searchParams} />
     </Suspense>
   );

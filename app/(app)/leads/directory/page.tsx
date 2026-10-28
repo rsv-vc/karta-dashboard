@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Lead directory · Karta Lead Tracker
 
 export default function DirectoryPage() {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<PageSkeleton layout="table" />}>
       <DirectoryContent />
     </Suspense>
   );

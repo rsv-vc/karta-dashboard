@@ -249,3 +249,27 @@ export async function reassignLeads(raw: unknown): Promise<ReassignResult> {
   revalidatePath("/", "layout");
   return { ok: true, moved: data, skipped: leadIds.length - data };
 }
+
+export interface LeadSearchHit {
+  id: string;
+  companyName: string;
+  pocName: string;
+  stage: LeadStage;
+}
+
+/** Command-menu search: leads the viewer may open (RLS: own leads, or all for admins). */
+export async function searchLeads(query: string): Promise<LeadSearchHit[]> {
+  await requireUser();
+  // Characters that carry meaning in a PostgREST filter are dropped, not escaped.
+  const q = query.replace(/[%*,()\\]/g, " ").trim();
+  if (q.length < 2) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("leads")
+    .select("id, company_name, poc_name, stage")
+    .or(`company_name.ilike.%${q}%,poc_name.ilike.%${q}%,id.ilike.%${q}%`)
+    .order("company_name")
+    .limit(8);
+  if (error) return [];
+  return data.map((l) => ({ id: l.id, companyName: l.company_name, pocName: l.poc_name, stage: l.stage }));
+}

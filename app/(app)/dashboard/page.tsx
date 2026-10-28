@@ -23,7 +23,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 // boundary does not re-run on navigation.
 export default function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<PageSkeleton layout="dashboard" />}>
       <DashboardContent searchParams={searchParams} />
     </Suspense>
   );

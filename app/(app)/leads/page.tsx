@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Leads · Karta Lead Tracker" };
 
 export default function LeadsPage() {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<PageSkeleton layout="table" />}>
       <LeadsContent />
     </Suspense>
   );
