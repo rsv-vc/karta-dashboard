@@ -1,13 +1,21 @@
 import type { User } from "@/types/user";
 
-// The team directory. App code uses the short ids ("u_priya"); the database
-// (Supabase Auth + profiles) uses the fixed authId UUIDs, mapped at the data
-// boundary (lib/data/mappers.ts). Adding a person means adding them here and
-// seeding the database (scripts/seed-supabase.ts).
-export const mockUsers: (User & { authId: string })[] = [
+// Seed input only: the demo team that scripts/seed-supabase.mts and
+// scripts/seed-users-sql.ts write to the database, plus the one-click demo
+// sign-in list. The app itself reads the team from the profiles table.
+
+/** Fixed auth UUIDs of the demo accounts. */
+export const DEMO_USER_IDS = {
+  admin: "6f1c2a10-0b6e-4d2a-9b1a-000000000001",
+  priya: "6f1c2a10-0b6e-4d2a-9b1a-000000000002",
+  rohan: "6f1c2a10-0b6e-4d2a-9b1a-000000000003",
+  ananya: "6f1c2a10-0b6e-4d2a-9b1a-000000000004",
+  karan: "6f1c2a10-0b6e-4d2a-9b1a-000000000005",
+} as const;
+
+export const mockUsers: User[] = [
   {
-    id: "u_admin",
-    authId: "6f1c2a10-0b6e-4d2a-9b1a-000000000001",
+    id: DEMO_USER_IDS.admin,
     name: "Admin User",
     email: "admin@company.com",
     role: "admin",
@@ -16,8 +24,7 @@ export const mockUsers: (User & { authId: string })[] = [
     joinedAt: "2025-06-02",
   },
   {
-    id: "u_priya",
-    authId: "6f1c2a10-0b6e-4d2a-9b1a-000000000002",
+    id: DEMO_USER_IDS.priya,
     name: "Priya Sharma",
     email: "priya@company.com",
     role: "sales_agent",
@@ -26,8 +33,7 @@ export const mockUsers: (User & { authId: string })[] = [
     joinedAt: "2025-08-18",
   },
   {
-    id: "u_rohan",
-    authId: "6f1c2a10-0b6e-4d2a-9b1a-000000000003",
+    id: DEMO_USER_IDS.rohan,
     name: "Rohan Mehta",
     email: "rohan@company.com",
     role: "sales_agent",
@@ -36,8 +42,7 @@ export const mockUsers: (User & { authId: string })[] = [
     joinedAt: "2025-11-03",
   },
   {
-    id: "u_ananya",
-    authId: "6f1c2a10-0b6e-4d2a-9b1a-000000000004",
+    id: DEMO_USER_IDS.ananya,
     name: "Ananya Iyer",
     email: "ananya@company.com",
     role: "sales_agent",
@@ -46,8 +51,7 @@ export const mockUsers: (User & { authId: string })[] = [
     joinedAt: "2026-01-12",
   },
   {
-    id: "u_karan",
-    authId: "6f1c2a10-0b6e-4d2a-9b1a-000000000005",
+    id: DEMO_USER_IDS.karan,
     name: "Karan Singh",
     email: "karan@company.com",
     role: "sales_agent",
@@ -57,21 +61,4 @@ export const mockUsers: (User & { authId: string })[] = [
   },
 ];
 
-export function getUserById(id: string): User | undefined {
-  return mockUsers.find((u) => u.id === id);
-}
-
-export function getAgents(): User[] {
-  return mockUsers.filter((u) => u.role === "sales_agent");
-}
-
-export function getUserByAuthId(authId: string): (User & { authId: string }) | undefined {
-  return mockUsers.find((u) => u.authId === authId);
-}
-
-/** App id -> database UUID. Throws on unknown ids so bad writes fail loudly. */
-export function toAuthId(appId: string): string {
-  const user = mockUsers.find((u) => u.id === appId);
-  if (!user) throw new Error(`Unknown user ${appId}`);
-  return user.authId;
-}
+export const demoAgents = (): User[] => mockUsers.filter((u) => u.role === "sales_agent");

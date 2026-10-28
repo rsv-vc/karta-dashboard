@@ -2,7 +2,6 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
-import { getUserByAuthId } from "@/data/mock-users";
 import { createClient } from "@/lib/supabase/server";
 import type { Role, SessionUser } from "@/types/user";
 
@@ -25,17 +24,16 @@ const getAuthState = cache(async (): Promise<AuthState> => {
   const authId = data?.claims?.sub ?? null;
   if (!authId) return { authId: null, user: null };
 
-  const person = getUserByAuthId(authId);
   const { data: profile } = await supabase
     .from("profiles")
     .select("name, email, role, title, status")
     .eq("id", authId)
     .maybeSingle();
-  if (!person || !profile || profile.status !== "active") return { authId, user: null };
+  if (!profile || profile.status !== "active") return { authId, user: null };
 
   return {
     authId,
-    user: { id: person.id, name: profile.name, email: profile.email, role: profile.role, title: profile.title },
+    user: { id: authId, name: profile.name, email: profile.email, role: profile.role, title: profile.title },
   };
 });
 

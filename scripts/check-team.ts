@@ -1,11 +1,12 @@
 // Asserts admin team metrics and reassignment: `npm run check:team`
 import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
-import { getUserById, mockUsers } from "@/data/mock-users";
+import { DEMO_USER_IDS as U, mockUsers } from "@/data/mock-users";
 import { TODAY, isActiveStage } from "@/lib/constants";
 import { computeTeamDashboard } from "@/lib/dashboard/team-metrics";
 import { reassignLead } from "@/lib/leads/mutations";
 import { getStageCounts } from "@/lib/selectors";
+import { nameLookup } from "@/lib/team";
 import { validateLeads } from "@/lib/validation";
 
 let failures = 0;
@@ -49,13 +50,13 @@ check("source win rates valid", all.sources.every((s) => s.winRate === null || (
 check("trend has 6 months ending this month", all.trend.length === 6 && all.trend[5].key === TODAY.slice(0, 7));
 
 // Reassignment.
-const nameOf = (id: string) => getUserById(id)?.name ?? id;
-const karanLead = mockLeads.find((l) => l.ownerId === "u_karan" && isActiveStage(l.stage))!;
-const moved = reassignLead(karanLead, "u_priya", { byUserId: "u_admin", ownerName: nameOf });
-check("reassign changes owner", moved.ownerId === "u_priya");
+const nameOf = nameLookup(mockUsers);
+const karanLead = mockLeads.find((l) => l.ownerId === U.karan && isActiveStage(l.stage))!;
+const moved = reassignLead(karanLead, U.priya, { byUserId: U.admin, ownerName: nameOf });
+check("reassign changes owner", moved.ownerId === U.priya);
 check("reassign adds one note", moved.activities.length === karanLead.activities.length + 1 && moved.activities.some((a) => a.description === "Reassigned from Karan Singh to Priya Sharma"));
-check("reassigned lead stays valid", validateLeads([moved]).valid);
-check("same-owner reassign is a no-op", reassignLead(karanLead, "u_karan", { byUserId: "u_admin", ownerName: nameOf }) === karanLead);
+check("reassigned lead stays valid", validateLeads([moved], { team: mockUsers }).valid);
+check("same-owner reassign is a no-op", reassignLead(karanLead, U.karan, { byUserId: U.admin, ownerName: nameOf }) === karanLead);
 
 if (failures > 0) {
   console.error(`\n${failures} check(s) failed`);

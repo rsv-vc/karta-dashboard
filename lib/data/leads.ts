@@ -1,17 +1,17 @@
 import "server-only";
 import { redirect } from "next/navigation";
-import { getAgents, mockUsers } from "@/data/mock-users";
 import { requireRole, requireUser } from "@/lib/auth/dal";
 import { isAdmin, partitionLeadsForUser, type VisibleLead } from "@/lib/auth/permissions";
 import { TODAY, isActiveStage } from "@/lib/constants";
 import { STALE_AFTER_DAYS, computeAgentDashboard, type AgentDashboard } from "@/lib/dashboard/agent-metrics";
 import { buildFollowUpBoard, type FollowUpBoard } from "@/lib/dashboard/follow-ups";
 import { computeTeamDashboard, type TeamDashboard, type TeamPeriod } from "@/lib/dashboard/team-metrics";
-import { fetchDirectory, fetchLead, fetchTargets, fetchVisibleLeads } from "@/lib/data/repo";
+import { fetchDirectory, fetchLead, fetchTargets, fetchTeam, fetchVisibleLeads } from "@/lib/data/repo";
 import { daysBetween } from "@/lib/dates";
 import { toDirectoryRow, toLeadRow, type DirectoryRow, type LeadRow } from "@/lib/leads/rows";
 import { buildMonthlyReport, type MonthlyReport } from "@/lib/reports/monthly";
 import { getFollowUpsDue } from "@/lib/selectors";
+import { activeAgents, nameLookup } from "@/lib/team";
 import type { Lead, LeadDirectoryEntry, LeadStage } from "@/types/lead";
 
 // Scoped lead access for pages and Server Actions. Each getter resolves the
@@ -52,14 +52,17 @@ export async function getFollowUpCounts(): Promise<FollowUpCounts> {
 
 /** List rows for every lead the viewer may see in full (agent: own; admin: all). */
 export async function getLeadRows(): Promise<LeadRow[]> {
-  const { full } = await getVisibleLeads();
-  return full.map(toLeadRow);
+  const [{ full }, team] = await Promise.all([getVisibleLeads(), fetchTeam()]);
+  const nameOf = nameLookup(team);
+  return full.map((lead) => toLeadRow(lead, nameOf));
 }
 
 /** Every lead as a masked directory row; the viewer's own rows are flagged isMine. */
 export async function getDirectoryRows(): Promise<DirectoryRow[]> {
   const user = await requireUser();
-  return (await fetchDirectory()).map((entry) => toDirectoryRow(entry, user.id));
+  const [directory, team] = await Promise.all([fetchDirectory(), fetchTeam()]);
+  const nameOf = nameLookup(team);
+  return directory.map((entry) => toDirectoryRow(entry, user.id, nameOf));
 }
 
 export interface OwnerOption {
@@ -70,9 +73,7 @@ export interface OwnerOption {
 /** Active sales agents, for owner filters. */
 export async function getOwnerOptions(): Promise<OwnerOption[]> {
   await requireUser();
-  return getAgents()
-    .filter((a) => a.status === "active")
-    .map(({ id, name }) => ({ id, name }));
+  return activeAgents(await fetchTeam()).map(({ id, name }) => ({ id, name }));
 }
 
 /** Full lead if the viewer may see it, the masked entry otherwise, or null if it does not exist. */
@@ -107,16 +108,16 @@ export async function getAgentDashboard(): Promise<AgentDashboard> {
 /** Follow-up queue: an agent's own leads; for admins every lead, optionally one owner's. */
 export async function getFollowUpBoard(ownerId?: string): Promise<FollowUpBoard> {
   const user = await requireUser();
-  const leads = (await fetchVisibleLeads()).filter((l) =>
-    isAdmin(user) ? !ownerId || l.ownerId === ownerId : l.ownerId === user.id,
-  );
-  return buildFollowUpBoard(leads, TODAY);
+  const [all, team] = await Promise.all([fetchVisibleLeads(), fetchTeam()]);
+  const leads = all.filter((l) => (isAdmin(user) ? !ownerId || l.ownerId === ownerId : l.ownerId === user.id));
+  return buildFollowUpBoard(leads, TODAY, nameLookup(team));
 }
 
 /** Admin team overview for a period. */
 export async function getTeamDashboard(period: TeamPeriod): Promise<TeamDashboard> {
   await requireRole("admin");
-  return computeTeamDashboard(await fetchVisibleLeads(), { today: TODAY, period, agents: mockUsers });
+  const [leads, team] = await Promise.all([fetchVisibleLeads(), fetchTeam()]);
+  return computeTeamDashboard(leads, { today: TODAY, period, agents: team });
 }
 
 export interface TeamMember {
@@ -140,8 +141,12 @@ export interface ReassignableLead {
 /** Everything the /team page needs: per-agent summaries and the active leads that can be moved. */
 export async function getTeamPageData(): Promise<{ members: TeamMember[]; leads: ReassignableLead[] }> {
   await requireRole("admin");
-  const [leads, targetFor] = await Promise.all([fetchVisibleLeads(), fetchTargets(TODAY.slice(0, 7))]);
-  const agents = getAgents().filter((a) => a.status === "active");
+  const [leads, targetFor, team] = await Promise.all([
+    fetchVisibleLeads(),
+    fetchTargets(TODAY.slice(0, 7)),
+    fetchTeam(),
+  ]);
+  const agents = activeAgents(team);
   const isStaleLead = (l: Lead) => daysBetween(l.lastContactedAt ?? l.createdAt, TODAY) >= STALE_AFTER_DAYS;
 
   const members = agents.map((a) => {
@@ -172,5 +177,6 @@ export async function getTeamPageData(): Promise<{ members: TeamMember[]; leads:
 /** Admin monthly report; month keys are validated by the page. */
 export async function getMonthlyReport(month: string, compareTo: string | null): Promise<MonthlyReport> {
   await requireRole("admin");
-  return buildMonthlyReport(await fetchVisibleLeads(), { month, compareTo, agents: mockUsers });
+  const [leads, team] = await Promise.all([fetchVisibleLeads(), fetchTeam()]);
+  return buildMonthlyReport(leads, { month, compareTo, team });
 }

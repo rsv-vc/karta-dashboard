@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getUserByAuthId, getUserById } from "@/data/mock-users";
+import { mockUsers } from "@/data/mock-users";
 import { isDemoMode } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -34,7 +34,7 @@ async function signIn(email: string, password: string): Promise<boolean> {
   if (error || !data.user) return false;
 
   const { data: profile } = await supabase.from("profiles").select("status").eq("id", data.user.id).maybeSingle();
-  if (!profile || profile.status !== "active" || !getUserByAuthId(data.user.id)) {
+  if (!profile || profile.status !== "active") {
     await supabase.auth.signOut();
     return false;
   }
@@ -58,9 +58,12 @@ function demoPassword(): string | null {
   return isDemoMode() ? (process.env.DEMO_PASSWORD ?? null) : null;
 }
 
+/** Only the seeded demo accounts can be signed into with the demo password. */
+const demoUser = (id: string) => mockUsers.find((u) => u.id === id);
+
 /** One-click demo sign-in. Only when NEXT_PUBLIC_DEMO_MODE=true. */
 export async function loginAsDemo(userId: string, next: string | null): Promise<void> {
-  const user = getUserById(userId);
+  const user = demoUser(userId);
   const password = demoPassword();
   if (!user || !password || !(await signIn(user.email, password))) redirect("/login");
   redirect(safeNext(next));
@@ -75,7 +78,7 @@ export async function logout(): Promise<void> {
 /** Development-only "view as" switch (also requires demo mode). */
 export async function switchUserDev(userId: string): Promise<{ error: string } | void> {
   if (process.env.NODE_ENV !== "development") return { error: "User switching is only available in development" };
-  const user = getUserById(userId);
+  const user = demoUser(userId);
   const password = demoPassword();
   if (!user || !password) return { error: "Unknown user or demo mode is off" };
   if (!(await signIn(user.email, password))) return { error: "Could not switch user" };

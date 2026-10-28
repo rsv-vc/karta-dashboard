@@ -1,11 +1,10 @@
-import { getUserByAuthId, toAuthId } from "@/data/mock-users";
 import type { Database } from "@/types/supabase";
 import type { ActivityEntry, Lead, LeadDirectoryEntry, StageHistoryEntry } from "@/types/lead";
 
-// Database rows <-> app domain types. Two conversions matter:
-// - Timestamps: Postgres returns UTC ("2026-10-28T04:30:00+00:00"); the app
-//   compares IST strings ("2026-10-28T10:00:00+05:30"), so convert at the edge.
-// - User ids: the database uses auth UUIDs, the app uses short ids ("u_priya").
+// Database rows <-> app domain types. User ids are the auth UUIDs on both
+// sides; timestamps need converting: Postgres returns UTC
+// ("2026-10-28T04:30:00+00:00") and the app compares IST strings
+// ("2026-10-28T10:00:00+05:30").
 
 type Tables = Database["public"]["Tables"];
 export type LeadDbRow = Tables["leads"]["Row"];
@@ -27,11 +26,6 @@ export function toIst(value: string): string {
 
 export const toIstOrNull = (value: string | null) => (value ? toIst(value) : null);
 
-/** Auth UUID -> app user id (falls back to the UUID for unknown people). */
-export function toAppUserId(authId: string): string {
-  return getUserByAuthId(authId)?.id ?? authId;
-}
-
 export function toLead(row: LeadDbRowWithRelations): Lead {
   const stageHistory: StageHistoryEntry[] = [...row.lead_stage_history]
     .sort((a, b) => a.start_at.localeCompare(b.start_at) || a.id - b.id)
@@ -44,7 +38,7 @@ export function toLead(row: LeadDbRowWithRelations): Lead {
       type: a.type,
       description: a.description,
       date: toIst(a.at),
-      byUserId: toAppUserId(a.by_user_id),
+      byUserId: a.by_user_id,
     }));
 
   return {
@@ -63,7 +57,7 @@ export function toLead(row: LeadDbRowWithRelations): Lead {
     priority: row.priority,
     dealValue: row.deal_value,
     currency: "INR",
-    ownerId: toAppUserId(row.owner_id),
+    ownerId: row.owner_id,
     createdAt: toIst(row.created_at),
     lastContactedAt: toIstOrNull(row.last_contacted_at),
     nextFollowUpAt: toIstOrNull(row.next_follow_up_at),
@@ -79,7 +73,7 @@ export function toDirectoryEntryFromDb(row: DirectoryDbRow): LeadDirectoryEntry 
     id: row.id,
     companyName: row.company_name,
     pocName: row.poc_name,
-    ownerId: toAppUserId(row.owner_id),
+    ownerId: row.owner_id,
     stage: row.stage,
   };
 }
@@ -107,7 +101,7 @@ export function toDbInsert(lead: Lead): {
       priority: lead.priority,
       deal_value: lead.dealValue,
       currency: lead.currency,
-      owner_id: toAuthId(lead.ownerId),
+      owner_id: lead.ownerId,
       created_at: lead.createdAt,
       last_contacted_at: lead.lastContactedAt,
       next_follow_up_at: lead.nextFollowUpAt,
@@ -125,7 +119,7 @@ export function toDbInsert(lead: Lead): {
       type: a.type,
       description: a.description,
       at: a.date,
-      by_user_id: toAuthId(a.byUserId),
+      by_user_id: a.byUserId,
     })),
   };
 }

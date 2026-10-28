@@ -19,13 +19,14 @@ import { PageSkeleton } from "@/components/shared/page-skeleton";
 import { StageBadge } from "@/components/shared/stage-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getUserById } from "@/data/mock-users";
 import { requireUser } from "@/lib/auth/dal";
 import { canDeleteLead } from "@/lib/auth/permissions";
 import { COMPANY_SIZE_LABELS, SOURCE_LABELS, isActiveStage } from "@/lib/constants";
 import { getLeadForViewer } from "@/lib/data/leads";
+import { fetchTeam } from "@/lib/data/repo";
 import { toDateKey } from "@/lib/dates";
 import { allowedNextStages } from "@/lib/leads/mutations";
+import { nameLookup, type NameOf } from "@/lib/team";
 import { formatDate, formatINR } from "@/lib/utils";
 import type { Lead, LeadDirectoryEntry } from "@/types/lead";
 
@@ -43,21 +44,18 @@ export default function LeadPage({ params }: PageProps<"/leads/[id]">) {
 
 async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [user, visible] = await Promise.all([requireUser(), getLeadForViewer(id)]);
+  const [user, visible, team] = await Promise.all([requireUser(), getLeadForViewer(id), fetchTeam()]);
   if (!visible) notFound();
+  const nameOf = nameLookup(team);
   return visible.kind === "full" ? (
-    <FullLead lead={visible.lead} canDelete={canDeleteLead(user)} />
+    <FullLead lead={visible.lead} canDelete={canDeleteLead(user)} nameOf={nameOf} />
   ) : (
-    <MaskedLead entry={visible.entry} />
+    <MaskedLead entry={visible.entry} nameOf={nameOf} />
   );
 }
 
-function ownerName(id: string): string {
-  return getUserById(id)?.name ?? "Unknown";
-}
-
-function MaskedLead({ entry }: { entry: LeadDirectoryEntry }) {
-  const owner = ownerName(entry.ownerId);
+function MaskedLead({ entry, nameOf }: { entry: LeadDirectoryEntry; nameOf: NameOf }) {
+  const owner = nameOf(entry.ownerId);
   return (
     <PageContainer>
       <PageHeader title={entry.companyName} actions={<StageBadge stage={entry.stage} />} />
@@ -82,8 +80,8 @@ function MaskedLead({ entry }: { entry: LeadDirectoryEntry }) {
   );
 }
 
-function FullLead({ lead, canDelete }: { lead: Lead; canDelete: boolean }) {
-  const owner = ownerName(lead.ownerId);
+function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean; nameOf: NameOf }) {
+  const owner = nameOf(lead.ownerId);
   const allowed = allowedNextStages(lead.stage);
   const active = isActiveStage(lead.stage);
 
@@ -133,7 +131,7 @@ function FullLead({ lead, canDelete }: { lead: Lead; canDelete: boolean }) {
               <CardTitle>Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              <ActivityTimeline activities={lead.activities} />
+              <ActivityTimeline activities={lead.activities} nameOf={nameOf} />
             </CardContent>
           </Card>
         </div>

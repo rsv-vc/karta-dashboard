@@ -1,6 +1,6 @@
-import { getUserById } from "@/data/mock-users";
 import { SOURCES, SOURCE_LABELS } from "@/lib/constants";
 import { getMonthlySummary, type MonthlySummaryRow } from "@/lib/selectors";
+import { nameLookup, type NameOf } from "@/lib/team";
 import type { ActivityType, Lead, LeadStage } from "@/types/lead";
 import type { User } from "@/types/user";
 
@@ -118,9 +118,7 @@ export function parseLostReason(description: string): string | null {
   return match ? match[1].trim() : null;
 }
 
-const ownerName = (id: string) => getUserById(id)?.name ?? "Unknown";
-
-function lostDeal(lead: Lead): LostDeal {
+function lostDeal(lead: Lead, ownerName: NameOf): LostDeal {
   const history = lead.stageHistory;
   const change = [...lead.activities].reverse().find((a) => a.type === "stage_change" && a.description.includes("to Lost"));
   return {
@@ -135,8 +133,9 @@ function lostDeal(lead: Lead): LostDeal {
 
 export function buildMonthlyReport(
   leads: Lead[],
-  { month, compareTo, agents }: { month: string; compareTo: string | null; agents: User[] },
+  { month, compareTo, team }: { month: string; compareTo: string | null; team: readonly User[] },
 ): MonthlyReport {
+  const ownerName = nameLookup(team);
   const now = summaryFor(leads, month);
   const before = compareTo ? summaryFor(leads, compareTo) : null;
   const metric = (
@@ -158,7 +157,7 @@ export function buildMonthlyReport(
 
   const closedIn = leads.filter((l) => l.closedAt?.startsWith(month));
 
-  const agentRows = agents
+  const agentRows = team
     .filter((a) => a.role === "sales_agent" && a.status === "active")
     .map((agent): AgentReportRow => {
       const own = leads.filter((l) => l.ownerId === agent.id);
@@ -217,7 +216,7 @@ export function buildMonthlyReport(
       .sort((a, b) => b.dealValue - a.dealValue),
     lostDeals: closedIn
       .filter((l) => l.stage === "lost")
-      .map(lostDeal)
+      .map((l) => lostDeal(l, ownerName))
       .sort((a, b) => b.closedAt.localeCompare(a.closedAt)),
   };
 }

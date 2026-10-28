@@ -58,7 +58,8 @@ export function computeAgentDashboard(
   const won = recentlyClosed.filter((l) => l.stage === "won").length;
   const lost = recentlyClosed.length - won;
 
-  const board = buildFollowUpBoard(leads, today);
+  // One person's leads: the owner name is never shown on their own queue.
+  const board = buildFollowUpBoard(leads, today, () => "");
   const due = [...board.overdue, ...board.today];
 
   const trend = getMonthlySummary(monthOf(today, TREND_MONTHS - 1), monthOf(today), leads).map((row) => ({

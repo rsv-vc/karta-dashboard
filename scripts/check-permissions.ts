@@ -2,7 +2,7 @@
 // (Sessions, passwords and database enforcement are covered by `npm run check:rls`.)
 import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
-import { getAgents, mockUsers } from "@/data/mock-users";
+import { demoAgents, mockUsers } from "@/data/mock-users";
 import { canViewReports, partitionLeadsForUser, toVisibleLead } from "@/lib/auth/permissions";
 import { getLeadsByOwner } from "@/lib/selectors";
 
@@ -21,7 +21,7 @@ check("admin: 75 full, 0 masked", adminView.full.length === 75 && adminView.mask
 check("admin: can view reports", canViewReports(admin));
 
 // Each agent: own leads full, everyone else's masked down to the 5 directory fields.
-for (const agent of getAgents()) {
+for (const agent of demoAgents()) {
   const { full, masked } = partitionLeadsForUser(agent, mockLeads);
   const own = getLeadsByOwner(agent.id).length;
   check(`${agent.name}: ${own} full + ${masked.length} masked = 75`, full.length === own && own + masked.length === 75);
@@ -33,7 +33,7 @@ for (const agent of getAgents()) {
   check(`${agent.name}: cannot view reports`, !canViewReports(agent));
 }
 
-const [priya, rohan] = getAgents();
+const [priya, rohan] = demoAgents();
 const priyaLead = getLeadsByOwner(priya.id)[0];
 check("agent sees another agent's lead masked", toVisibleLead(rohan, priyaLead).kind === "masked");
 check("agent sees own lead in full", toVisibleLead(priya, priyaLead).kind === "full");

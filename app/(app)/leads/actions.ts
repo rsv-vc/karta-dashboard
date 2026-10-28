@@ -2,12 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getUserById, toAuthId } from "@/data/mock-users";
 import { requireUser } from "@/lib/auth/dal";
 import { canCreateLead, canDeleteLead, canReassignLead, canViewFullLead, isAdmin } from "@/lib/auth/permissions";
 import { TODAY } from "@/lib/constants";
-import { toAppUserId } from "@/lib/data/mappers";
-import { fetchLead } from "@/lib/data/repo";
+import { fetchLead, fetchTeam } from "@/lib/data/repo";
 import { followUpIso, normalizePhone } from "@/lib/leads/mutations";
 import {
   changeStageSchema,
@@ -19,6 +17,7 @@ import {
   type LeadFormValues,
 } from "@/lib/leads/schemas";
 import { createClient } from "@/lib/supabase/server";
+import { activeAgents, nameLookup } from "@/lib/team";
 import type { LeadStage } from "@/types/lead";
 import type { SessionUser } from "@/types/user";
 
@@ -37,8 +36,6 @@ export interface DuplicateMatch {
   canOpen: boolean;
 }
 
-const ownerName = (id: string) => getUserById(id)?.name ?? "Unknown";
-
 function invalid(error: z.ZodError): ActionResult {
   return { ok: false, error: "Please fix the highlighted fields", fieldErrors: toFieldErrors(error) };
 }
@@ -54,9 +51,8 @@ function done(id?: string): ActionResult {
 }
 
 /** Valid owner for a new or reassigned lead: an active sales agent. */
-function isAssignableOwner(id: string): boolean {
-  const user = getUserById(id);
-  return user?.role === "sales_agent" && user.status === "active";
+async function isAssignableOwner(id: string): Promise<boolean> {
+  return activeAgents(await fetchTeam()).some((a) => a.id === id);
 }
 
 /** Masked matches only: company, owner and stage, whoever owns the lead. */
@@ -67,16 +63,14 @@ async function duplicatesFor(companyName: string, viewer: SessionUser, excludeId
     p_exclude_id: excludeId,
   });
   if (error) return [];
-  return data.map((row) => {
-    const ownerId = toAppUserId(row.owner_id);
-    return {
-      id: row.id,
-      companyName: row.company_name,
-      ownerName: ownerName(ownerId),
-      stage: row.stage,
-      canOpen: canViewFullLead(viewer, { ownerId }),
-    };
-  });
+  const ownerName = nameLookup(await fetchTeam());
+  return data.map((row) => ({
+    id: row.id,
+    companyName: row.company_name,
+    ownerName: ownerName(row.owner_id),
+    stage: row.stage,
+    canOpen: canViewFullLead(viewer, { ownerId: row.owner_id }),
+  }));
 }
 
 /** Lead detail columns shared by create and edit, normalized. */
@@ -113,7 +107,7 @@ export async function createLead(raw: unknown): Promise<ActionResult> {
 
   // Agents always own what they create; admins must pick an active agent.
   const ownerId = isAdmin(user) ? input.ownerId : user.id;
-  if (!isAssignableOwner(ownerId)) {
+  if (!(await isAssignableOwner(ownerId))) {
     return { ok: false, error: "Pick an owner", fieldErrors: { ownerId: "Pick the agent who owns this lead" } };
   }
   if ((await duplicatesFor(input.companyName, user)).length > 0 && !input.duplicateAcknowledged) {
@@ -124,7 +118,7 @@ export async function createLead(raw: unknown): Promise<ActionResult> {
   const { data, error } = await supabase.rpc("create_lead", {
     p: {
       ...detailColumns(input),
-      owner_id: toAuthId(ownerId),
+      owner_id: ownerId,
       next_follow_up_at: followUpIso(input.nextFollowUpDate) ?? "",
     },
   });
@@ -145,7 +139,7 @@ export async function updateLead(id: string, raw: unknown): Promise<ActionResult
     return { ok: false, error: "Please fix the highlighted fields", fieldErrors: { nextFollowUpDate: "Pick today or a later date" } };
   }
   const reassignTo = canReassignLead(user) && input.ownerId && input.ownerId !== lead.ownerId ? input.ownerId : null;
-  if (reassignTo && !isAssignableOwner(reassignTo)) {
+  if (reassignTo && !(await isAssignableOwner(reassignTo))) {
     return { ok: false, error: "Pick an owner", fieldErrors: { ownerId: "Pick an active sales agent" } };
   }
   const renamed = input.companyName.trim() !== lead.companyName;
@@ -168,7 +162,7 @@ export async function updateLead(id: string, raw: unknown): Promise<ActionResult
   if (data.length === 0) return { ok: false, error: "You can only change leads you own" };
 
   if (reassignTo) {
-    const { error: moveError } = await supabase.rpc("reassign_leads", { p_lead_ids: [id], p_to: toAuthId(reassignTo) });
+    const { error: moveError } = await supabase.rpc("reassign_leads", { p_lead_ids: [id], p_to: reassignTo });
     if (moveError) return dbError(moveError);
   }
   return done(id);
@@ -247,10 +241,10 @@ export async function reassignLeads(raw: unknown): Promise<ReassignResult> {
   const parsed = reassignSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const { leadIds, toOwnerId } = parsed.data;
-  if (!isAssignableOwner(toOwnerId)) return { ok: false, error: "Pick an active sales agent" };
+  if (!(await isAssignableOwner(toOwnerId))) return { ok: false, error: "Pick an active sales agent" };
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("reassign_leads", { p_lead_ids: leadIds, p_to: toAuthId(toOwnerId) });
+  const { data, error } = await supabase.rpc("reassign_leads", { p_lead_ids: leadIds, p_to: toOwnerId });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return { ok: true, moved: data, skipped: leadIds.length - data };

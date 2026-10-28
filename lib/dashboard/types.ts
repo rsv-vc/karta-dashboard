@@ -1,5 +1,5 @@
-import { getUserById } from "@/data/mock-users";
 import { toDateKey } from "@/lib/dates";
+import type { NameOf } from "@/lib/team";
 import type { Lead } from "@/types/lead";
 
 // Small DTOs for dashboard and follow-up views: enough to render a row and
@@ -14,7 +14,7 @@ export type FollowUpItem = Pick<
   ownerName: string;
 };
 
-export function toFollowUpItem(lead: Lead): FollowUpItem {
+export function toFollowUpItem(lead: Lead, nameOf: NameOf): FollowUpItem {
   return {
     id: lead.id,
     companyName: lead.companyName,
@@ -24,6 +24,6 @@ export function toFollowUpItem(lead: Lead): FollowUpItem {
     nextFollowUpAt: lead.nextFollowUpAt,
     lastContactedAt: lead.lastContactedAt,
     createdDay: toDateKey(lead.createdAt),
-    ownerName: getUserById(lead.ownerId)?.name ?? "Unknown",
+    ownerName: nameOf(lead.ownerId),
   };
 }

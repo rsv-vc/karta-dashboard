@@ -1,5 +1,5 @@
 import { ArrowRightLeftIcon, CalendarIcon, MailIcon, PhoneIcon, StickyNoteIcon, type LucideIcon } from "lucide-react";
-import { getUserById } from "@/data/mock-users";
+import type { NameOf } from "@/lib/team";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { ActivityEntry, ActivityType } from "@/types/lead";
 
@@ -16,7 +16,7 @@ const TYPE_STYLE: Record<ActivityType, { icon: LucideIcon; label: string; classN
 };
 
 /** Newest-first activity feed with a type icon, who did it and when. */
-export function ActivityTimeline({ activities }: { activities: ActivityEntry[] }) {
+export function ActivityTimeline({ activities, nameOf }: { activities: ActivityEntry[]; nameOf: NameOf }) {
   // Stable ascending sort then reverse, so same-minute entries show the latest-added first.
   const items = [...activities].sort((a, b) => a.date.localeCompare(b.date)).reverse();
   if (items.length === 0) return <p className="text-sm text-muted-foreground">No activity yet.</p>;
@@ -37,7 +37,7 @@ export function ActivityTimeline({ activities }: { activities: ActivityEntry[] }
             <div className="min-w-0 pt-0.5">
               <p className="text-sm break-words">{a.description}</p>
               <p className="text-xs text-muted-foreground">
-                {getUserById(a.byUserId)?.name ?? "Someone"} · {formatDateTime(a.date)}
+                {nameOf(a.byUserId)} · {formatDateTime(a.date)}
               </p>
             </div>
           </li>

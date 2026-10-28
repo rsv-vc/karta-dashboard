@@ -2,10 +2,11 @@
 import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
 import { getTargetFor } from "@/data/mock-targets";
-import { getAgents } from "@/data/mock-users";
+import { demoAgents, mockUsers } from "@/data/mock-users";
 import { TODAY, isActiveStage } from "@/lib/constants";
 import { STALE_AFTER_DAYS, computeAgentDashboard } from "@/lib/dashboard/agent-metrics";
 import { buildFollowUpBoard } from "@/lib/dashboard/follow-ups";
+import { nameLookup } from "@/lib/team";
 import { getFollowUpsDue, getLeadsByOwner } from "@/lib/selectors";
 
 let failures = 0;
@@ -14,7 +15,7 @@ function check(label: string, ok: boolean) {
   if (!ok) failures++;
 }
 
-for (const agent of getAgents()) {
+for (const agent of demoAgents()) {
   const leads = getLeadsByOwner(agent.id);
   const d = computeAgentDashboard(leads, { today: TODAY, target: getTargetFor(agent.id) });
   const activeCount = leads.filter((l) => isActiveStage(l.stage)).length;
@@ -46,7 +47,7 @@ for (const agent of getAgents()) {
 }
 
 // The board partitions every active lead with a follow-up exactly once.
-const board = buildFollowUpBoard(mockLeads, TODAY);
+const board = buildFollowUpBoard(mockLeads, TODAY, nameLookup(mockUsers));
 const ids = [...board.overdue, ...board.today, ...board.thisWeek, ...board.later].map((i) => i.id);
 const expected = mockLeads.filter((l) => isActiveStage(l.stage) && l.nextFollowUpAt).map((l) => l.id);
 check(`board covers ${expected.length} scheduled leads once each`, ids.length === expected.length && new Set(ids).size === ids.length);

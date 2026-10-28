@@ -1,7 +1,7 @@
-import { getUserById } from "@/data/mock-users";
 import { PRIORITY_LABELS, SOURCE_LABELS, STAGE_LABELS } from "@/lib/constants";
 import { toDateKey } from "@/lib/dates";
 import type { MonthlyReport } from "@/lib/reports/monthly";
+import type { NameOf } from "@/lib/team";
 import type { Lead } from "@/types/lead";
 
 // CSV building. RFC 4180 quoting, CRLF line endings, a UTF-8 BOM for Excel,
@@ -73,7 +73,7 @@ export function monthlyReportCsv(report: MonthlyReport): string {
   return toCsv(rows);
 }
 
-export function leadsCsv(leads: Lead[]): string {
+export function leadsCsv(leads: Lead[], nameOf: NameOf): string {
   const header = [
     "Lead ID", "Company", "POC", "Designation", "Email", "Phone", "Industry", "City", "Source", "Stage",
     "Priority", "Deal value (INR)", "Owner", "Created", "Last contact", "Next follow-up",
@@ -91,7 +91,7 @@ export function leadsCsv(leads: Lead[]): string {
     STAGE_LABELS[l.stage],
     PRIORITY_LABELS[l.priority],
     l.dealValue,
-    getUserById(l.ownerId)?.name ?? "",
+    nameOf(l.ownerId),
     date(l.createdAt),
     date(l.lastContactedAt),
     date(l.nextFollowUpAt),

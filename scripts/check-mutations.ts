@@ -1,7 +1,7 @@
 // Asserts the pure lead mutation rules: `npm run check:mutations`
 import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
-import { getUserById } from "@/data/mock-users";
+import { DEMO_USER_IDS as U, mockUsers } from "@/data/mock-users";
 import { TODAY } from "@/lib/constants";
 import { laterThan, nowIso } from "@/lib/dates";
 import {
@@ -14,6 +14,7 @@ import {
   normalizePhone,
 } from "@/lib/leads/mutations";
 import { createLeadSchema, leadFormSchema, type LeadFormValues } from "@/lib/leads/schemas";
+import { nameLookup } from "@/lib/team";
 import { validateLeads } from "@/lib/validation";
 import type { Lead } from "@/types/lead";
 
@@ -31,7 +32,7 @@ function throws(fn: () => unknown): boolean {
   }
 }
 const isValid = (lead: Lead) => {
-  const r = validateLeads([lead]);
+  const r = validateLeads([lead], { team: mockUsers });
   if (!r.valid) console.log("   ", r.errors.map((e) => e.message).join("; "));
   return r.valid;
 };
@@ -69,22 +70,22 @@ check("laterThan bumps by a minute", laterThan("2026-10-28T09:00:00+05:30", "202
 
 // Create.
 const at = "2026-10-28T09:30:00+05:30";
-let lead = buildNewLead(input, { id: "L-2001", ownerId: "u_priya", byUserId: "u_priya", at });
+let lead = buildNewLead(input, { id: "L-2001", ownerId: U.priya, byUserId: U.priya, at });
 check("new lead is valid", isValid(lead));
 check("new lead normalizes email and phone", lead.pocEmail === "asha@zenithsolutions.in" && lead.pocPhone === "+91 98765 43210");
 
 // Walk the pipeline one step at a time.
-check("skipping a stage throws", throws(() => applyStageChange(lead, { to: "proposal" }, { byUserId: "u_priya" })));
+check("skipping a stage throws", throws(() => applyStageChange(lead, { to: "proposal" }, { byUserId: U.priya })));
 let ok = true;
 for (const to of ["contacted", "qualified", "proposal", "negotiation", "won"] as const) {
-  lead = applyStageChange(lead, { to, finalDealValue: to === "won" ? 1_800_000 : undefined }, { byUserId: "u_priya", at: "2026-10-28T09:00:00+05:30" });
+  lead = applyStageChange(lead, { to, finalDealValue: to === "won" ? 1_800_000 : undefined }, { byUserId: U.priya, at: "2026-10-28T09:00:00+05:30" });
   ok &&= isValid(lead);
 }
 check("new → won stays valid at every step (timestamps kept ordered)", ok);
 check("won sets closedAt and final value", lead.closedAt !== null && lead.dealValue === 1_800_000 && lead.nextFollowUpAt === null);
 check("one stage_change per transition", lead.activities.filter((a) => a.type === "stage_change").length === 5);
-check("won is terminal", allowedNextStages("won").length === 0 && throws(() => applyStageChange(lead, { to: "lost", lostReason: "x" }, { byUserId: "u_priya" })));
-check("activity on a closed lead throws", throws(() => applyActivity(lead, { type: "call", description: "Hi", date: TODAY, nextFollowUpDate: "" }, { byUserId: "u_priya" })));
+check("won is terminal", allowedNextStages("won").length === 0 && throws(() => applyStageChange(lead, { to: "lost", lostReason: "x" }, { byUserId: U.priya })));
+check("activity on a closed lead throws", throws(() => applyActivity(lead, { type: "call", description: "Hi", date: TODAY, nextFollowUpDate: "" }, { byUserId: U.priya })));
 
 // Lost needs a reason.
 const proposal = mockLeads.find((l) => l.stage === "proposal")!;
@@ -101,15 +102,15 @@ const noted = applyActivity(active, { type: "note", description: "Internal note"
 check("a note does not touch lastContactedAt", noted.lastContactedAt === active.lastContactedAt);
 
 // Edits.
-const nameOf = (id: string) => getUserById(id)?.name ?? id;
-const editInput = { ...input, ownerId: "u_karan" };
+const nameOf = nameLookup(mockUsers);
+const editInput = { ...input, ownerId: U.karan };
 const agentEdit = applyLeadEdits(active, editInput, { byUserId: active.ownerId, canReassign: false, ownerName: nameOf });
 check("an agent edit keeps the owner", agentEdit.ownerId === active.ownerId);
-const adminEdit = applyLeadEdits(active, editInput, { byUserId: "u_admin", canReassign: true, ownerName: nameOf });
-check("an admin edit reassigns with a note", adminEdit.ownerId === "u_karan" && adminEdit.activities.some((a) => a.description.startsWith("Reassigned")) && isValid(adminEdit));
+const adminEdit = applyLeadEdits(active, editInput, { byUserId: U.admin, canReassign: true, ownerName: nameOf });
+check("an admin edit reassigns with a note", adminEdit.ownerId === U.karan && adminEdit.activities.some((a) => a.description.startsWith("Reassigned")) && isValid(adminEdit));
 
 // Seed rules still hold for the untouched seed.
-check("seed still valid with seed rules", validateLeads(mockLeads, { seedRules: true }).valid);
+check("seed still valid with seed rules", validateLeads(mockLeads, { seedRules: true, team: mockUsers }).valid);
 
 if (failures > 0) {
   console.error(`\n${failures} check(s) failed`);

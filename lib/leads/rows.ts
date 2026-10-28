@@ -1,4 +1,4 @@
-import { getUserById } from "@/data/mock-users";
+import type { NameOf } from "@/lib/team";
 import type { Lead, LeadDirectoryEntry } from "@/types/lead";
 
 // DTOs sent to Client Components. They carry only what list views render:
@@ -25,11 +25,7 @@ export type LeadRow = Pick<
 
 export type DirectoryRow = LeadDirectoryEntry & { ownerName: string; isMine: boolean };
 
-function ownerNameOf(ownerId: string): string {
-  return getUserById(ownerId)?.name ?? "Unknown";
-}
-
-export function toLeadRow(lead: Lead): LeadRow {
+export function toLeadRow(lead: Lead, nameOf: NameOf): LeadRow {
   return {
     id: lead.id,
     companyName: lead.companyName,
@@ -42,21 +38,21 @@ export function toLeadRow(lead: Lead): LeadRow {
     priority: lead.priority,
     dealValue: lead.dealValue,
     ownerId: lead.ownerId,
-    ownerName: ownerNameOf(lead.ownerId),
+    ownerName: nameOf(lead.ownerId),
     createdAt: lead.createdAt,
     lastContactedAt: lead.lastContactedAt,
     nextFollowUpAt: lead.nextFollowUpAt,
   };
 }
 
-export function toDirectoryRow(entry: LeadDirectoryEntry, viewerId: string): DirectoryRow {
+export function toDirectoryRow(entry: LeadDirectoryEntry, viewerId: string, nameOf: NameOf): DirectoryRow {
   return {
     id: entry.id,
     companyName: entry.companyName,
     pocName: entry.pocName,
     ownerId: entry.ownerId,
     stage: entry.stage,
-    ownerName: ownerNameOf(entry.ownerId),
+    ownerName: nameOf(entry.ownerId),
     isMine: entry.ownerId === viewerId,
   };
 }

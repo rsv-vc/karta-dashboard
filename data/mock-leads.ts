@@ -18,6 +18,7 @@ import {
 } from "@/lib/constants";
 import { fromDayNumber, toDateKey, toDayNumber, toIstIso } from "@/lib/dates";
 import { createRng } from "@/lib/random";
+import { DEMO_USER_IDS as U } from "@/data/mock-users";
 
 // Deterministic mock lead generator. Every random choice comes from one seeded
 // PRNG, so the 75 leads are identical on every reload and on server and client.
@@ -46,26 +47,26 @@ const MONTH_PLAN = [
 
 /** Priya is the top performer, Karan the weaker agent. Sums to 75. */
 const OWNER_COUNTS: Record<string, number> = {
-  u_priya: 26,
-  u_rohan: 19,
-  u_ananya: 19,
-  u_karan: 11,
+  [U.priya]: 26,
+  [U.rohan]: 19,
+  [U.ananya]: 19,
+  [U.karan]: 11,
 };
 
 /** Multiplies a lead's chance of progressing far down the pipeline. */
 const OWNER_SKILL: Record<string, number> = {
-  u_priya: 1.35,
-  u_rohan: 1,
-  u_ananya: 1,
-  u_karan: 0.75,
+  [U.priya]: 1.35,
+  [U.rohan]: 1,
+  [U.ananya]: 1,
+  [U.karan]: 0.75,
 };
 
 /** Relative chance that one of the owner's leads is lost. */
 const OWNER_LOSS_WEIGHT: Record<string, number> = {
-  u_priya: 0.4,
-  u_rohan: 1,
-  u_ananya: 1,
-  u_karan: 2.5,
+  [U.priya]: 0.4,
+  [U.rohan]: 1,
+  [U.ananya]: 1,
+  [U.karan]: 2.5,
 };
 
 /** Exact stage counts (~15/20/18/14/10/13/10 %). Sums to 75. */
@@ -209,8 +210,8 @@ interface Skeleton {
 
 /** Positions (by creation order) and owners of the Zenith near-duplicate pair. */
 const ZENITH_SLOTS = [
-  { index: 30, ownerId: "u_rohan", name: "Zenith Retail" },
-  { index: 66, ownerId: "u_ananya", name: "Zenith Retail Pvt Ltd" },
+  { index: 30, ownerId: U.rohan, name: "Zenith Retail" },
+  { index: 66, ownerId: U.ananya, name: "Zenith Retail Pvt Ltd" },
 ];
 
 function buildSkeletons(): Skeleton[] {

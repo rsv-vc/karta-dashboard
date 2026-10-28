@@ -1,8 +1,7 @@
-import { mockUsers } from "@/data/mock-users";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { isAdmin } from "@/lib/auth/permissions";
 import { TODAY } from "@/lib/constants";
-import { fetchVisibleLeads } from "@/lib/data/repo";
+import { fetchTeam, fetchVisibleLeads } from "@/lib/data/repo";
 import { monthlyReportCsv } from "@/lib/reports/csv";
 import { buildMonthlyReport, isMonthKey, previousMonth, reportMonths } from "@/lib/reports/monthly";
 
@@ -22,7 +21,8 @@ export async function GET(request: Request) {
     return new Response("Invalid month", { status: 400 });
   }
 
-  const report = buildMonthlyReport(await fetchVisibleLeads(), { month, compareTo: compare, agents: mockUsers });
+  const [leads, team] = await Promise.all([fetchVisibleLeads(), fetchTeam()]);
+  const report = buildMonthlyReport(leads, { month, compareTo: compare, team });
   return new Response(monthlyReportCsv(report), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

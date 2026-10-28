@@ -3,7 +3,7 @@
 // Needs the seeded demo data. Mutations happen only on a temporary lead that is
 // deleted at the end, so the seed stays intact.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { mockUsers, toAuthId } from "@/data/mock-users";
+import { DEMO_USER_IDS as U, mockUsers } from "@/data/mock-users";
 import type { Database } from "@/types/supabase";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -34,11 +34,11 @@ async function signIn(appId: string): Promise<Client> {
   return c;
 }
 
-const priya = await signIn("u_priya");
-const admin = await signIn("u_admin");
+const priya = await signIn(U.priya);
+const admin = await signIn(U.admin);
 const anon = client();
-const PRIYA = toAuthId("u_priya");
-const ROHAN = toAuthId("u_rohan");
+const PRIYA = U.priya;
+const ROHAN = U.rohan;
 
 // Reads ----------------------------------------------------------------------------
 const own = await priya.from("leads").select("id, owner_id");

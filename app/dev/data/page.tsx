@@ -5,7 +5,7 @@ import { StageBadge } from "@/components/shared/stage-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { mockLeads } from "@/data/mock-leads";
-import { getAgents, getUserById } from "@/data/mock-users";
+import { demoAgents, mockUsers } from "@/data/mock-users";
 import { STAGES } from "@/lib/constants";
 import {
   findPossibleDuplicates,
@@ -23,7 +23,7 @@ import { validateLeads } from "@/lib/validation";
 export const metadata: Metadata = { title: "Data check (dev)" };
 
 function ownerName(id: string): string {
-  return getUserById(id)?.name ?? id;
+  return mockUsers.find((u) => u.id === id)?.name ?? id;
 }
 
 function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
@@ -39,7 +39,7 @@ function Section({ title, description, children }: { title: string; description?
 }
 
 function ValidationSection() {
-  const { valid, errors } = validateLeads(mockLeads, { seedRules: true });
+  const { valid, errors } = validateLeads(mockLeads, { seedRules: true, team: mockUsers });
   if (valid) {
     return (
       <p className="rounded-lg border border-green-300 bg-green-50 p-3 font-medium text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300">
@@ -91,7 +91,7 @@ function AgentTable() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {getAgents().map((agent) => {
+        {demoAgents().map((agent) => {
           const leads = getLeadsByOwner(agent.id);
           const won = leads.filter((l) => l.stage === "won");
           return (
@@ -247,7 +247,7 @@ export default function DevDataPage() {
       <div>
         <h1 className="text-2xl font-semibold">Mock data check</h1>
         <p className="text-muted-foreground">
-          {mockLeads.length} leads, {getAgents().length} agents. TODAY is fixed at 28 Oct 2026.
+          {mockLeads.length} leads, {demoAgents().length} agents. TODAY is fixed at 28 Oct 2026.
         </p>
       </div>
 

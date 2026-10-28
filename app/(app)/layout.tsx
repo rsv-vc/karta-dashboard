@@ -6,9 +6,9 @@ import { AppHeader } from "@/components/layout/app-header";
 import { AppShellSkeleton } from "@/components/layout/app-shell-skeleton";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { mockUsers } from "@/data/mock-users";
 import { requireUser } from "@/lib/auth/dal";
 import { getFollowUpCounts } from "@/lib/data/leads";
+import { fetchTeam } from "@/lib/data/repo";
 import { isDemoMode } from "@/lib/supabase/env";
 
 // Authenticated app shell. The session read lives inside Suspense (never a
@@ -16,7 +16,12 @@ import { isDemoMode } from "@/lib/supabase/env";
 // DAL, because layouts do not re-run on client navigation.
 
 async function AuthGate({ children }: { children: ReactNode }) {
-  const [user, followUps, cookieStore] = await Promise.all([requireUser(), getFollowUpCounts(), cookies()]);
+  const [user, followUps, cookieStore, team] = await Promise.all([
+    requireUser(),
+    getFollowUpCounts(),
+    cookies(),
+    fetchTeam(),
+  ]);
   // shadcn's sidebar stores its open/collapsed state in this cookie.
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
   const showSwitcher = process.env.NODE_ENV === "development" && isDemoMode();
@@ -34,7 +39,7 @@ async function AuthGate({ children }: { children: ReactNode }) {
       {showSwitcher && (
         <DevUserSwitcher
           currentUserId={user.id}
-          users={mockUsers.filter((u) => u.status === "active").map(({ id, name, role }) => ({ id, name, role }))}
+          users={team.filter((u) => u.status === "active").map(({ id, name, role }) => ({ id, name, role }))}
         />
       )}
     </UserProvider>

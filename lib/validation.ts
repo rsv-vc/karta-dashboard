@@ -1,7 +1,7 @@
-import { getUserById } from "@/data/mock-users";
 import { PIPELINE_ORDER, TODAY, isActiveStage } from "@/lib/constants";
 import { daysBetween, toDateKey } from "@/lib/dates";
 import type { Lead } from "@/types/lead";
+import type { User } from "@/types/user";
 
 // Integrity checks for lead data. Used by the dev data page today and useful as
 // a test helper once real data arrives.
@@ -27,6 +27,8 @@ export interface ValidationOptions {
    * legitimately, so they are off by default.
    */
   seedRules?: boolean;
+  /** When given, every lead must be owned by a sales agent on this team. */
+  team?: readonly User[];
 }
 
 /** Returns a message for every broken stageHistory rule. */
@@ -90,14 +92,15 @@ function checkDates(lead: Lead, seedRules: boolean): string[] {
   return problems;
 }
 
-function checkOwner(lead: Lead): string[] {
-  const owner = getUserById(lead.ownerId);
+function checkOwner(lead: Lead, team: readonly User[] | undefined): string[] {
+  if (!team) return [];
+  const owner = team.find((u) => u.id === lead.ownerId);
   if (!owner) return [`owner ${lead.ownerId} does not exist`];
   if (owner.role !== "sales_agent") return [`owner ${owner.name} is not a sales agent`];
   return [];
 }
 
-export function validateLeads(leads: Lead[], { seedRules = false }: ValidationOptions = {}): ValidationResult {
+export function validateLeads(leads: Lead[], { seedRules = false, team }: ValidationOptions = {}): ValidationResult {
   const errors: ValidationError[] = [];
   const dataset = (message: string) => errors.push({ leadId: "-", companyName: "(dataset)", message });
 
@@ -108,7 +111,7 @@ export function validateLeads(leads: Lead[], { seedRules = false }: ValidationOp
     if (seen.has(lead.id)) dataset(`duplicate id ${lead.id}`);
     seen.add(lead.id);
 
-    for (const message of [...checkStageHistory(lead, seedRules), ...checkDates(lead, seedRules), ...checkOwner(lead)]) {
+    for (const message of [...checkStageHistory(lead, seedRules), ...checkDates(lead, seedRules), ...checkOwner(lead, team)]) {
       errors.push({ leadId: lead.id, companyName: lead.companyName, message });
     }
   }

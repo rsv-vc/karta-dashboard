@@ -1,10 +1,11 @@
 // Quick CLI sanity check of the mock data: `npx tsx scripts/check-data.ts`
 import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
+import { mockUsers } from "@/data/mock-users";
 import { getFollowUpsDue, findPossibleDuplicates, getMonthlySummary, getStageCounts } from "@/lib/selectors";
 import { validateLeads } from "@/lib/validation";
 
-const result = validateLeads(mockLeads, { seedRules: true });
+const result = validateLeads(mockLeads, { seedRules: true, team: mockUsers });
 console.log(result.valid ? `OK: all ${mockLeads.length} leads valid` : result.errors);
 console.log("stages", getStageCounts(mockLeads));
 

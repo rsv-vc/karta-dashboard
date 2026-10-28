@@ -6,6 +6,7 @@ import { TODAY } from "@/lib/constants";
 import { DEFAULT_FILTERS, filterLeadRows } from "@/lib/leads/filters";
 import { toLeadRow } from "@/lib/leads/rows";
 import { leadsCsv, monthlyReportCsv, toCsv } from "@/lib/reports/csv";
+import { nameLookup } from "@/lib/team";
 import { buildMonthlyReport, parseLostReason, previousMonth, reportMonths } from "@/lib/reports/monthly";
 import { getMonthlySummary } from "@/lib/selectors";
 
@@ -20,7 +21,7 @@ check(`report months ${months.at(-1)} → ${months[0]}`, months.length === 6 && 
 check("previous month wraps the year", previousMonth("2026-01") === "2025-12");
 
 for (const month of months) {
-  const report = buildMonthlyReport(mockLeads, { month, compareTo: previousMonth(month), agents: mockUsers });
+  const report = buildMonthlyReport(mockLeads, { month, compareTo: previousMonth(month), team: mockUsers });
   const [y, m] = month.split("-").map(Number);
   const s = getMonthlySummary({ year: y, month: m }, { year: y, month: m }, mockLeads)[0];
   const v = Object.fromEntries(report.summary.map((r) => [r.key, r.value]));
@@ -42,12 +43,12 @@ check(
   "quoting, numbers and formula guard",
   csv.slice(1).trimEnd() === `"a,b","say ""hi""","line\nbreak",42,,'=SUM(A1),'-5 people,'@cmd`,
 );
-const reportCsv = monthlyReportCsv(buildMonthlyReport(mockLeads, { month: "2026-09", compareTo: "2026-08", agents: mockUsers }));
+const reportCsv = monthlyReportCsv(buildMonthlyReport(mockLeads, { month: "2026-09", compareTo: "2026-08", team: mockUsers }));
 check("report CSV has every section", ["Summary", "Agents", "Sources", "Won deals", "Lost deals"].every((t) => reportCsv.includes(`\r\n${t}\r\n`)));
 check("report CSV money is plain integers (no ₹)", !reportCsv.includes("₹"));
-const leadCsvLines = leadsCsv(mockLeads).trimEnd().split("\r\n");
+const leadCsvLines = leadsCsv(mockLeads, nameLookup(mockUsers)).trimEnd().split("\r\n");
 check("leads CSV = header + 75 rows", leadCsvLines.length === 76);
-const wonRows = filterLeadRows(mockLeads.map(toLeadRow), { ...DEFAULT_FILTERS, stages: ["won"] }).length;
+const wonRows = filterLeadRows(mockLeads.map((l) => toLeadRow(l, nameLookup(mockUsers))), { ...DEFAULT_FILTERS, stages: ["won"] }).length;
 check(`filtered export size (${wonRows} won)`, wonRows === mockLeads.filter((l) => l.stage === "won").length);
 
 if (failures > 0) {

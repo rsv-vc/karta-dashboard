@@ -7,7 +7,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { mockLeads } from "@/data/mock-leads";
 import { MONTHLY_TARGETS } from "@/data/mock-targets";
-import { getAgents, mockUsers, toAuthId } from "@/data/mock-users";
+import { demoAgents, mockUsers } from "@/data/mock-users";
 import { toDbInsert, toLead, type LeadDbRowWithRelations } from "@/lib/data/mappers";
 import { FIRST_REPORT_MONTH, reportMonths } from "@/lib/reports/monthly";
 import { TODAY } from "@/lib/constants";
@@ -57,9 +57,9 @@ check("insert history", await supabase.from("lead_stage_history").insert(rows.fl
 check("insert activities", await supabase.from("lead_activities").insert(rows.flatMap((r) => r.activities)));
 
 const months = reportMonths(TODAY).filter((m) => m >= FIRST_REPORT_MONTH);
-const targets = getAgents().flatMap((agent) =>
+const targets = demoAgents().flatMap((agent) =>
   months.map((month) => ({
-    user_id: toAuthId(agent.id),
+    user_id: agent.id,
     month: `${month}-01`,
     won_value: MONTHLY_TARGETS[agent.id]?.wonValue ?? 0,
     new_leads: MONTHLY_TARGETS[agent.id]?.newLeads ?? 0,
@@ -74,7 +74,7 @@ const back = check(
   await supabase.from("leads").select("*, lead_stage_history(*), lead_activities(*)").order("id"),
 ) as LeadDbRowWithRelations[];
 const leads = back.map(toLead);
-const result = validateLeads(leads, { seedRules: true });
+const result = validateLeads(leads, { seedRules: true, team: mockUsers });
 
 console.log(`✓ ${leads.length} leads, ${rows.reduce((n, r) => n + r.history.length, 0)} history rows, ${rows.reduce((n, r) => n + r.activities.length, 0)} activities, ${targets.length} targets`);
 console.log(`✓ next lead id will be L-${Number(seq) + 1}`);

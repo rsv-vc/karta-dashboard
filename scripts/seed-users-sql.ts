@@ -16,7 +16,7 @@ const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
 const users = mockUsers
   .map(
-    (u) => `  (${q(u.authId)}::uuid, ${q(u.email)}, ${q(u.name)}, ${q(u.role)}::public.app_role, ${q(u.title)}, ${q(u.status)}::public.user_status, ${q(u.joinedAt)}::date)`,
+    (u) => `  (${q(u.id)}::uuid, ${q(u.email)}, ${q(u.name)}, ${q(u.role)}::public.app_role, ${q(u.title)}, ${q(u.status)}::public.user_status, ${q(u.joinedAt)}::date)`,
   )
   .join(",\n");
 

@@ -1,6 +1,7 @@
 import { isActiveStage } from "@/lib/constants";
 import { daysBetween, toDateKey } from "@/lib/dates";
 import { toFollowUpItem, type FollowUpItem } from "@/lib/dashboard/types";
+import type { NameOf } from "@/lib/team";
 import type { Lead } from "@/types/lead";
 
 // Follow-up queue buckets. Pure: takes leads and a "today" date key.
@@ -21,7 +22,7 @@ export const FOLLOW_UP_SECTIONS = [
 ] as const satisfies readonly { key: keyof FollowUpBoard; label: string }[];
 
 /** Every active lead with a follow-up lands in exactly one bucket, soonest first. */
-export function buildFollowUpBoard(leads: Lead[], today: string): FollowUpBoard {
+export function buildFollowUpBoard(leads: Lead[], today: string, nameOf: NameOf): FollowUpBoard {
   const board: FollowUpBoard = { overdue: [], today: [], thisWeek: [], later: [] };
   const scheduled = leads
     .filter((l) => isActiveStage(l.stage) && l.nextFollowUpAt)
@@ -29,7 +30,7 @@ export function buildFollowUpBoard(leads: Lead[], today: string): FollowUpBoard 
 
   for (const lead of scheduled) {
     const days = daysBetween(today, toDateKey(lead.nextFollowUpAt!));
-    const item = toFollowUpItem(lead);
+    const item = toFollowUpItem(lead, nameOf);
     if (days < 0) board.overdue.push(item);
     else if (days === 0) board.today.push(item);
     else if (days <= 7) board.thisWeek.push(item);

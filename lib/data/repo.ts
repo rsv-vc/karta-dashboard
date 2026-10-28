@@ -1,14 +1,11 @@
 import "server-only";
+import { connection } from "next/server";
 import { cache } from "react";
-import { getTargetFor, type MonthlyTarget } from "@/data/mock-targets";
-import {
-  toAppUserId,
-  toDirectoryEntryFromDb,
-  toLead,
-  type LeadDbRowWithRelations,
-} from "@/lib/data/mappers";
+import { DEFAULT_TARGET, type MonthlyTarget } from "@/data/mock-targets";
+import { toDirectoryEntryFromDb, toLead, type LeadDbRowWithRelations } from "@/lib/data/mappers";
 import { createClient } from "@/lib/supabase/server";
 import type { Lead, LeadDirectoryEntry } from "@/types/lead";
+import type { User } from "@/types/user";
 
 // Raw reads from Supabase as the signed-in user. Row Level Security decides
 // what comes back: agents get their own leads, admins get all of them. Each
@@ -21,6 +18,27 @@ export class DataError extends Error {}
 function fail(what: string, error: { message: string }): never {
   throw new DataError(`Could not load ${what}: ${error.message}`);
 }
+
+/** The whole team from profiles (every signed-in user may read it), sorted by name. */
+export const fetchTeam = cache(async (): Promise<User[]> => {
+  // Often fetched in parallel with the session check: keep it out of prerendering too.
+  await connection();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, name, email, role, title, status, joined_at")
+    .order("name");
+  if (error) fail("the team", error);
+  return data.map((p) => ({
+    id: p.id,
+    name: p.name,
+    email: p.email,
+    role: p.role,
+    title: p.title,
+    status: p.status,
+    joinedAt: p.joined_at,
+  }));
+});
 
 /** Every lead this user may see in full, with history and activities. */
 export const fetchVisibleLeads = cache(async (): Promise<Lead[]> => {
@@ -47,7 +65,7 @@ export const fetchDirectory = cache(async (): Promise<LeadDirectoryEntry[]> => {
 });
 
 /**
- * Monthly targets keyed by app user id for "YYYY-MM" (agents see their own,
+ * Monthly targets keyed by user id for "YYYY-MM" (agents see their own,
  * admins everyone's). Falls back to the default plan when none is stored.
  */
 export const fetchTargets = cache(async (monthKey: string): Promise<(userId: string) => MonthlyTarget> => {
@@ -57,6 +75,6 @@ export const fetchTargets = cache(async (monthKey: string): Promise<(userId: str
     .select("user_id, won_value, new_leads")
     .eq("month", `${monthKey}-01`);
   if (error) fail("targets", error);
-  const byUser = new Map(data.map((t) => [toAppUserId(t.user_id), { wonValue: t.won_value, newLeads: t.new_leads }]));
-  return (userId: string) => byUser.get(userId) ?? getTargetFor(userId);
+  const byUser = new Map(data.map((t) => [t.user_id, { wonValue: t.won_value, newLeads: t.new_leads }]));
+  return (userId: string) => byUser.get(userId) ?? DEFAULT_TARGET;
 });
