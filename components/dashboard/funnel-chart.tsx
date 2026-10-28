@@ -1,6 +1,7 @@
 "use client";
 
 import { Bar, BarChart, LabelList, XAxis, YAxis } from "recharts";
+import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { FunnelStep } from "@/lib/dashboard/team-metrics";
 
@@ -13,6 +14,7 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 /** Conversion funnel: how many leads ever reached each stage, with step conversion at the tip. */
 export function FunnelChart({ steps }: { steps: FunnelStep[] }) {
+  const reducedMotion = usePrefersReducedMotion();
   const data: Datum[] = steps.map((s, i) => ({
     ...s,
     prevLabel: i > 0 ? steps[i - 1].label : null,
@@ -48,7 +50,7 @@ export function FunnelChart({ steps }: { steps: FunnelStep[] }) {
               );
             }}
           />
-          <Bar dataKey="reached" fill="var(--color-reached)" radius={[0, 4, 4, 0]} maxBarSize={24}>
+          <Bar dataKey="reached" isAnimationActive={!reducedMotion} fill="var(--color-reached)" radius={[0, 4, 4, 0]} maxBarSize={24}>
             <LabelList dataKey="tip" position="right" offset={8} className="fill-foreground text-xs" />
           </Bar>
         </BarChart>

@@ -145,6 +145,18 @@
     @apply font-sans;
   }
 }
+/* Respect "reduce motion": dialogs, menus and skeletons appear without animating. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Print: paper gets the content only, always light, with cards kept whole. */
 @media print {
   [data-slot="sidebar"],

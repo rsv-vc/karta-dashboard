@@ -184,8 +184,8 @@ function RecentLeadsTable() {
 function FollowUpSummary() {
   const { overdue, today, upcoming } = getFollowUpsDue();
   const items = [
-    { label: "Overdue", count: overdue.length, className: "text-red-600 dark:text-red-400" },
-    { label: "Due today", count: today.length, className: "text-amber-600 dark:text-amber-400" },
+    { label: "Overdue", count: overdue.length, className: "text-red-700 dark:text-red-400" },
+    { label: "Due today", count: today.length, className: "text-amber-700 dark:text-amber-400" },
     { label: "Upcoming", count: upcoming.length, className: "text-foreground" },
   ];
   return (

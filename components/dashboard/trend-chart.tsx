@@ -1,6 +1,7 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
 import {
   ChartContainer,
   ChartLegend,
@@ -24,6 +25,7 @@ const config = {
 
 /** Grouped columns: new leads vs deals won per month, with legend and tooltip. */
 export function TrendChart({ data }: { data: TrendDatum[] }) {
+  const reducedMotion = usePrefersReducedMotion();
   return (
     <>
       <ChartContainer config={config} className="aspect-auto h-56 w-full">
@@ -44,8 +46,8 @@ export function TrendChart({ data }: { data: TrendDatum[] }) {
           />
           <ChartTooltip cursor={{ fill: "var(--muted)", opacity: 0.5 }} content={<ChartTooltipContent />} />
           <ChartLegend content={<ChartLegendContent />} />
-          <Bar dataKey="newLeads" fill="var(--color-newLeads)" radius={[4, 4, 0, 0]} maxBarSize={20} />
-          <Bar dataKey="won" fill="var(--color-won)" radius={[4, 4, 0, 0]} maxBarSize={20} />
+          <Bar dataKey="newLeads" isAnimationActive={!reducedMotion} fill="var(--color-newLeads)" radius={[4, 4, 0, 0]} maxBarSize={20} />
+          <Bar dataKey="won" isAnimationActive={!reducedMotion} fill="var(--color-won)" radius={[4, 4, 0, 0]} maxBarSize={20} />
         </BarChart>
       </ChartContainer>
       {/* sr-only on a wrapper: tables ignore the 1px width and would widen the page. */}

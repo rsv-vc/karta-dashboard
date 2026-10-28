@@ -71,7 +71,7 @@ export function AppSidebar({ overdueCount }: { overdueCount: number }) {
                     </SidebarMenuButton>
                     {showBadge && (
                       <SidebarMenuBadge
-                        className="text-red-600 dark:text-red-400"
+                        className="text-red-700 dark:text-red-400"
                         aria-label={`${overdueCount} overdue follow-ups`}
                       >
                         {overdueCount}

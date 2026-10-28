@@ -74,17 +74,19 @@ export function CommandMenu() {
 
   return (
     <>
+      {/* The visible text is the accessible name (so "click Search" works for voice control). */}
       <Button
         variant="outline"
         size="sm"
         className="text-muted-foreground sm:w-48 sm:justify-start"
         onClick={() => setOpen(true)}
-        aria-label="Search leads and pages"
         aria-keyshortcuts="Control+K Meta+K"
       >
         <SearchIcon />
-        <span className="hidden sm:inline">Search…</span>
-        <kbd className="ml-auto hidden rounded border bg-muted px-1.5 font-mono text-[10px] sm:inline">Ctrl K</kbd>
+        <span className="sr-only sm:not-sr-only">Search…</span>
+        <kbd className="ml-auto hidden rounded border bg-muted px-1.5 font-mono text-[10px] text-foreground sm:inline" aria-hidden="true">
+          Ctrl K
+        </kbd>
       </Button>
       <CommandDialog
         open={open}

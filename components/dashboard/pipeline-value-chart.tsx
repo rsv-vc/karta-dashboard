@@ -1,6 +1,7 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { formatINR, formatINRShort } from "@/lib/utils";
 
@@ -13,6 +14,7 @@ const config = { pipelineValue: { label: "Open pipeline", color: "var(--series-1
 
 /** Single-series area: open pipeline value at each month end (2px line, light wash, crosshair tooltip). */
 export function PipelineValueChart({ data }: { data: PipelineValueDatum[] }) {
+  const reducedMotion = usePrefersReducedMotion();
   return (
     <>
       <ChartContainer config={config} className="aspect-auto h-56 w-full">
@@ -48,6 +50,7 @@ export function PipelineValueChart({ data }: { data: PipelineValueDatum[] }) {
             }}
           />
           <Area
+            isAnimationActive={!reducedMotion}
             type="monotone"
             dataKey="pipelineValue"
             stroke="var(--color-pipelineValue)"

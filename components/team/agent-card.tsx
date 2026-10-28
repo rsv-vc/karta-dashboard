@@ -31,7 +31,7 @@ export function AgentCard({ member }: { member: TeamMember }) {
         <dl className="grid grid-cols-4 gap-2 text-center">
           {stats.map((s) => (
             <div key={s.label} className="rounded-lg bg-muted/50 px-1 py-2">
-              <dd className={cn("text-base font-semibold", s.alert && "text-red-600 dark:text-red-400")}>{s.value}</dd>
+              <dd className={cn("text-base font-semibold", s.alert && "text-red-700 dark:text-red-400")}>{s.value}</dd>
               <dt className="text-xs text-muted-foreground">{s.label}</dt>
             </div>
           ))}

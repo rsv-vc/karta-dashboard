@@ -29,7 +29,7 @@ export function StatTile({
         <span
           className={cn(
             "flex items-center gap-2 text-2xl font-semibold tracking-tight",
-            tone === "alert" && "text-red-600 dark:text-red-400",
+            tone === "alert" && "text-red-700 dark:text-red-400",
           )}
         >
           {icon}

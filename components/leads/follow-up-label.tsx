@@ -10,8 +10,8 @@ export function FollowUpLabel({ date }: { date: string | null }) {
       title={formatDate(date)}
       className={cn(
         "whitespace-nowrap",
-        bucket === "overdue" && "font-medium text-red-600 dark:text-red-400",
-        bucket === "today" && "font-medium text-amber-600 dark:text-amber-400",
+        bucket === "overdue" && "font-medium text-red-700 dark:text-red-400",
+        bucket === "today" && "font-medium text-amber-700 dark:text-amber-400",
         bucket === "upcoming" && "text-muted-foreground",
       )}
     >

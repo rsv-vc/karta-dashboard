@@ -72,7 +72,7 @@ async function FollowUpsContent({ searchParams }: { searchParams: Promise<Record
         FOLLOW_UP_SECTIONS.map((s) => (
           <Card key={s.key} id={s.key} className="scroll-mt-20">
             <CardHeader>
-              <CardTitle className={cn(s.key === "overdue" && board.overdue.length > 0 && "text-red-600 dark:text-red-400")}>
+              <CardTitle className={cn(s.key === "overdue" && board.overdue.length > 0 && "text-red-700 dark:text-red-400")}>
                 {s.label} <span className="font-normal text-muted-foreground">· {board[s.key].length}</span>
               </CardTitle>
             </CardHeader>

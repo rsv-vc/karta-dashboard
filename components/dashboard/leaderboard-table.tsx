@@ -51,13 +51,13 @@ export function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
               <TableCell className={NUM}>{pct(r.winRate)}</TableCell>
               <TableCell className={cn(NUM, r.overdue > 0 && "font-medium")}>
                 <span className="inline-flex items-center gap-1">
-                  {r.overdue > 0 && <AlertCircleIcon className="size-3.5 text-red-600 dark:text-red-400" aria-label="Has overdue" />}
+                  {r.overdue > 0 && <AlertCircleIcon className="size-3.5 text-red-700 dark:text-red-400" aria-label="Has overdue" />}
                   {r.overdue}
                 </span>
               </TableCell>
               <TableCell className={NUM}>
                 <span className="inline-flex items-center gap-1">
-                  {r.stale > 0 && <ClockIcon className="size-3.5 text-amber-600 dark:text-amber-400" aria-label="Has stale leads" />}
+                  {r.stale > 0 && <ClockIcon className="size-3.5 text-amber-700 dark:text-amber-400" aria-label="Has stale leads" />}
                   {r.stale}
                 </span>
               </TableCell>

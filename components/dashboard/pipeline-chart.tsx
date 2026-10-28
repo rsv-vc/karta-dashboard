@@ -1,6 +1,7 @@
 "use client";
 
 import { Bar, BarChart, LabelList, XAxis, YAxis } from "recharts";
+import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { formatINR, formatINRShort } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ const config = {
 
 /** Horizontal bars: active leads per stage, count at the bar tip, ₹ value on hover. */
 export function PipelineChart({ data }: { data: PipelineDatum[] }) {
+  const reducedMotion = usePrefersReducedMotion();
   return (
     <>
       <ChartContainer config={config} className="aspect-auto h-56 w-full">
@@ -46,7 +48,7 @@ export function PipelineChart({ data }: { data: PipelineDatum[] }) {
               );
             }}
           />
-          <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} maxBarSize={24}>
+          <Bar dataKey="count" isAnimationActive={!reducedMotion} fill="var(--color-count)" radius={[0, 4, 4, 0]} maxBarSize={24}>
             <LabelList dataKey="count" position="right" offset={8} className="fill-foreground text-xs" />
           </Bar>
         </BarChart>

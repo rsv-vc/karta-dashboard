@@ -28,7 +28,7 @@ export function DemoAccounts({ next }: { next: string | null }) {
                 <div className="truncate text-xs text-muted-foreground">{user.title}</div>
               </div>
               <form action={loginAsDemo.bind(null, user.id, next)}>
-                <Button type="submit" size="sm" variant="outline">
+                <Button type="submit" size="sm" variant="outline" aria-label={`Sign in as ${user.name}`}>
                   Sign in
                 </Button>
               </form>
