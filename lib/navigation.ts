@@ -158,10 +158,17 @@ export interface Breadcrumb {
   href: string;
 }
 
-/** Crumbs for every nav item that prefixes the path, e.g. Leads › Lead directory. */
+/**
+ * Crumbs for every nav item that prefixes the path, e.g. Leads › Lead directory.
+ * A deeper path with no nav item of its own (a record page such as /leads/L-1001)
+ * gets a generic final "Details" crumb.
+ */
 export function getBreadcrumbs(pathname: string, role: Role): Breadcrumb[] {
-  return Object.values(NAV_ITEMS)
+  const crumbs = Object.values(NAV_ITEMS)
     .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
     .sort((a, b) => a.href.length - b.href.length)
     .map((item) => ({ label: getNavLabel(item, role), href: item.href }));
+  const deepest = crumbs[crumbs.length - 1];
+  if (deepest && deepest.href !== pathname) crumbs.push({ label: "Details", href: pathname });
+  return crumbs;
 }

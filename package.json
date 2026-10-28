@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "check:data": "tsx scripts/check-data.ts",
-    "check:permissions": "tsx scripts/check-permissions.ts"
+    "check:permissions": "tsx scripts/check-permissions.ts",
+    "check:leads": "tsx scripts/check-leads.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",

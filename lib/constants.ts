@@ -132,7 +132,15 @@ export const PRIORITY_LABELS: Record<LeadPriority, string> = {
   high: "High",
 };
 
-export const PRIORITIES = Object.keys(PRIORITY_LABELS) as LeadPriority[];
+/** Ordered high → low, the order lists and filters show them in. */
+export const PRIORITIES: LeadPriority[] = ["high", "medium", "low"];
+
+/** Full literal classes (Tailwind cannot see dynamically built names). */
+export const PRIORITY_STYLES: Record<LeadPriority, { dotClass: string; textClass: string }> = {
+  high: { dotClass: "bg-red-500", textClass: "text-red-700 dark:text-red-400" },
+  medium: { dotClass: "bg-amber-500", textClass: "text-amber-700 dark:text-amber-400" },
+  low: { dotClass: "bg-slate-400", textClass: "text-muted-foreground" },
+};
 
 export const COMPANY_SIZE_LABELS: Record<CompanySize, string> = {
   "1-10": "1–10 employees",

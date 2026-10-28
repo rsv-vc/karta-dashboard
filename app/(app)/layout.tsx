@@ -24,7 +24,8 @@ async function AuthGate({ children }: { children: ReactNode }) {
     <UserProvider user={user}>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar overdueCount={followUps.overdue} />
-        <SidebarInset>
+        {/* min-w-0 lets wide content (tables) scroll inside instead of widening the page. */}
+        <SidebarInset className="min-w-0">
           <AppHeader />
           <main className="flex flex-1 flex-col p-4 sm:p-6">{children}</main>
         </SidebarInset>

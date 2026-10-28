@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
@@ -21,22 +22,25 @@ export default function FollowUpsPage() {
 async function FollowUpsContent() {
   const counts = await getFollowUpCounts();
   const stats = [
-    { label: "Overdue", value: counts.overdue, className: "text-red-600 dark:text-red-400" },
-    { label: "Due today", value: counts.today, className: "text-amber-600 dark:text-amber-400" },
-    { label: "Upcoming", value: counts.upcoming, className: "" },
+    { bucket: "overdue", label: "Overdue", value: counts.overdue, className: "text-red-600 dark:text-red-400" },
+    { bucket: "today", label: "Due today", value: counts.today, className: "text-amber-600 dark:text-amber-400" },
+    { bucket: "upcoming", label: "Upcoming", value: counts.upcoming, className: "" },
   ];
 
   return (
     <PageContainer>
       <PageHeader title={getNavTitle("followUps")} description={NAV_ITEMS.followUps.description} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {/* Each card opens the lead list filtered to that bucket. */}
         {stats.map((s) => (
-          <Card key={s.label}>
-            <CardContent>
-              <div className={`text-3xl font-semibold tabular-nums ${s.className}`}>{s.value}</div>
-              <div className="text-sm text-muted-foreground">{s.label}</div>
-            </CardContent>
-          </Card>
+          <Link key={s.bucket} href={`/leads?followUp=${s.bucket}`} className="rounded-xl focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
+            <Card className="transition-colors hover:bg-muted/40">
+              <CardContent>
+                <div className={`text-3xl font-semibold tabular-nums ${s.className}`}>{s.value}</div>
+                <div className="text-sm text-muted-foreground">{s.label} · view leads →</div>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
       <ComingSoon
