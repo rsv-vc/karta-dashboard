@@ -1,5 +1,5 @@
 import { SOURCES, SOURCE_LABELS } from "@/lib/constants";
-import { getMonthlySummary, type MonthlySummaryRow } from "@/lib/selectors";
+import { getMonthlySummary, reachedStageInMonth, type MonthlySummaryRow } from "@/lib/selectors";
 import { nameLookup, type NameOf } from "@/lib/team";
 import type { ActivityType, Lead, LeadStage } from "@/types/lead";
 import type { User } from "@/types/user";
@@ -24,8 +24,8 @@ export interface AgentReportRow {
   agentId: string;
   name: string;
   newLeads: number;
-  qualified: number;
-  proposals: number;
+  discoveries: number;
+  pocs: number;
   won: number;
   wonValue: number;
   lost: number;
@@ -109,9 +109,6 @@ function contactActivitiesIn(leads: Lead[], key: string): number {
   );
 }
 
-const enteredIn = (lead: Lead, stage: LeadStage, key: string) =>
-  lead.stageHistory.some((e) => e.stage === stage && e.startDate.startsWith(key));
-
 /** "Moved from Proposal to Lost: Budget cut" -> "Budget cut"; null when no reason was recorded. */
 export function parseLostReason(description: string): string | null {
   const match = /^Moved from .+ to Lost: (.+)$/.exec(description);
@@ -157,8 +154,9 @@ export function buildMonthlyReport(
 
   const closedIn = leads.filter((l) => l.closedAt?.startsWith(month));
 
+  // Sales agents, plus admins who own accounts (e.g. the Head of Growth).
   const agentRows = team
-    .filter((a) => a.role === "sales_agent" && a.status === "active")
+    .filter((a) => a.status === "active" && (a.role === "sales_agent" || leads.some((l) => l.ownerId === a.id)))
     .map((agent): AgentReportRow => {
       const own = leads.filter((l) => l.ownerId === agent.id);
       const ownClosed = own.filter((l) => l.closedAt?.startsWith(month));
@@ -168,8 +166,8 @@ export function buildMonthlyReport(
         agentId: agent.id,
         name: agent.name,
         newLeads: own.filter((l) => l.createdAt.startsWith(month)).length,
-        qualified: own.filter((l) => enteredIn(l, "qualified", month)).length,
-        proposals: own.filter((l) => enteredIn(l, "proposal", month)).length,
+        discoveries: own.filter((l) => reachedStageInMonth(l, "discovery_done", month)).length,
+        pocs: own.filter((l) => reachedStageInMonth(l, "poc_pitched", month)).length,
         won: won.length,
         wonValue: won.reduce((s, l) => s + l.dealValue, 0),
         lost,
@@ -199,8 +197,8 @@ export function buildMonthlyReport(
     compareLabel: compareTo ? monthLabel(compareTo) : null,
     summary: [
       metric("newLeads", "New leads", "count", (s) => s.newLeads),
-      metric("qualified", "Qualified", "count", (s) => s.qualified),
-      metric("proposals", "Proposals sent", "count", (s) => s.proposals),
+      metric("discoveries", "Discoveries held", "count", (s) => s.discoveries),
+      metric("pocs", "POCs pitched", "count", (s) => s.pocs),
       metric("won", "Deals won", "count", (s) => s.won),
       metric("wonValue", "Won value", "currency", (s) => s.wonValue),
       metric("lost", "Deals lost", "count", (s) => s.lost, false),

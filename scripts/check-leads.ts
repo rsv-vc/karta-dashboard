@@ -25,14 +25,14 @@ const rows = mockLeads.map((l) => toLeadRow(l, nameOf));
 const withFilters = (patch: Partial<LeadFilters>): LeadFilters => ({ ...DEFAULT_FILTERS, ...patch });
 
 // URL round-trips.
-const sample = withFilters({ q: "zenith", stages: ["new", "won"], owners: [U.priya], followUp: ["overdue"], status: "active" });
+const sample = withFilters({ q: "zenith", stages: ["not_met", "won"], owners: [U.priya], followUp: ["overdue"], status: "active" });
 const roundTrip = parseLeadFilters(serializeLeadFilters(sample));
 check("parse(serialize(f)) round-trips", JSON.stringify(roundTrip) === JSON.stringify(sample));
 check("default filters serialize to an empty query", serializeLeadFilters(DEFAULT_FILTERS).toString() === "");
 const junk = parseLeadFilters(new URLSearchParams("stage=won,banana&priority=urgent&status=weird&followUp=today"));
 check("unknown values are dropped", junk.stages.join() === "won" && junk.priorities.length === 0 && junk.status === "all");
 check("followUp parses", junk.followUp.join() === "today");
-check("record params parse too", parseLeadFilters({ stage: ["qualified"], q: " x " }).stages.join() === "qualified");
+check("record params parse too", parseLeadFilters({ stage: ["follow_up"], q: " x " }).stages.join() === "follow_up");
 
 // Filtering.
 const zenith = filterLeadRows(rows, withFilters({ q: "zenith retail pvt" }));

@@ -113,12 +113,16 @@ const created = await admin.rpc("create_lead", {
 const tempId = created.data as string;
 check(`Admin creates a lead for Priya (${tempId})`, !created.error && /^L-\d+$/.test(tempId), created.error?.message);
 
-const skip = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "proposal" });
-check("change_lead_stage rejects a skip (new → proposal)", Boolean(skip.error), skip.error?.message);
-const step = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "contacted", p_note: "First call done" });
-check("Priya moves her lead new → contacted", !step.error, step.error?.message);
+const step = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "discovery_done", p_note: "First call done" });
+check("Priya moves her account not met → discovery done", !step.error, step.error?.message);
+const back = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "not_met" });
+check("change_lead_stage refuses a backwards move", Boolean(back.error), back.error?.message);
+const noShow = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "no_show" });
+check("…and No-show after discovery", Boolean(noShow.error), noShow.error?.message);
 const hist = await priya.from("lead_stage_history").select("stage, end_at").eq("lead_id", tempId).order("start_at");
-check("…and history has new (closed) + contacted (current)", hist.data?.map((h) => `${h.stage}:${h.end_at ? "ended" : "current"}`).join() === "new:ended,contacted:current");
+check("…and history has not met (closed) + discovery done (current)", hist.data?.map((h) => `${h.stage}:${h.end_at ? "ended" : "current"}`).join() === "not_met:ended,discovery_done:current");
+const dated = await priya.from("leads").select("discovery_date, discovery_month").eq("id", tempId).single();
+check("…and the first discovery dates the account", Boolean(dated.data?.discovery_date) && Boolean(dated.data?.discovery_month), dated.data);
 
 const moved = await admin.rpc("reassign_leads", { p_lead_ids: [tempId], p_to: ROHAN });
 check("Admin reassigns it to Rohan", !moved.error && moved.data === 1, moved.error?.message);
@@ -137,9 +141,11 @@ check("an admin cannot demote themselves", /own admin access/.test(selfDemote.er
 const selfOff = await admin.rpc("admin_update_member", { p_id: U.admin, p_role: "admin", p_status: "inactive" });
 check("an admin cannot deactivate themselves", /own admin access/.test(selfOff.error?.message ?? ""), selfOff.error?.message);
 const busy = await admin.rpc("admin_update_member", { p_id: KARAN, p_role: "sales_agent", p_status: "inactive" });
-check("deactivating an agent who owns active leads is refused", /active leads/.test(busy.error?.message ?? ""), busy.error?.message);
+check("deactivating someone who owns open accounts is refused", /open accounts/.test(busy.error?.message ?? ""), busy.error?.message);
+// Admins can own accounts, so promoting an agent who owns some is fine (and put back).
 const promote = await admin.rpc("admin_update_member", { p_id: KARAN, p_role: "admin", p_status: "active" });
-check("…and so is making them an employee", /active leads/.test(promote.error?.message ?? ""), promote.error?.message);
+const demote = await admin.rpc("admin_update_member", { p_id: KARAN, p_role: "sales_agent", p_status: "active" });
+check("an agent who owns accounts can become an employee (and back)", !promote.error && !demote.error, promote.error?.message ?? demote.error?.message);
 const noop = await admin.rpc("admin_update_member", { p_id: KARAN, p_role: "sales_agent", p_status: "active" });
 check("an unchanged role and status is accepted", !noop.error, noop.error?.message);
 

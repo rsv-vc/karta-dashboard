@@ -12,9 +12,14 @@ export function nameLookup(team: readonly Pick<User, "id" | "name">[], fallback 
   return (id) => names.get(id) ?? fallback;
 }
 
-/** Active sales agents: the people who can own leads. */
+/** Active sales agents. */
 export function activeAgents<T extends Pick<User, "role" | "status">>(team: readonly T[]): T[] {
   return team.filter((u) => u.role === "sales_agent" && u.status === "active");
+}
+
+/** Everyone who can own accounts: active agents and active admins (an admin can bring leads too). */
+export function activeOwners<T extends Pick<User, "status">>(team: readonly T[]): T[] {
+  return team.filter((u) => u.status === "active");
 }
 
 // Members --------------------------------------------------------------------

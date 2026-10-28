@@ -1,4 +1,4 @@
-import { PIPELINE_ORDER, STAGE_LABELS, TODAY, isActiveStage } from "@/lib/constants";
+import { STAGES, STAGE_LABELS, TODAY, canMoveStage, isActiveStage } from "@/lib/constants";
 import { laterThan, nowIso, toDateKey, toIstIso } from "@/lib/dates";
 import type { LeadFormValues, LogActivityValues } from "@/lib/leads/schemas";
 import type { ActivityEntry, ActivityType, Lead, LeadStage } from "@/types/lead";
@@ -21,10 +21,14 @@ export function normalizePhone(raw: string): string {
   return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
 }
 
-/** The next pipeline step, plus "lost" from any active stage. Closed leads cannot move. */
+/** Every stage this one may move to (canMoveStage), in display order. Won and Lost cannot move. */
 export function allowedNextStages(stage: LeadStage): LeadStage[] {
-  if (!isActiveStage(stage)) return [];
-  return [PIPELINE_ORDER[PIPELINE_ORDER.indexOf(stage) + 1], "lost"];
+  return STAGES.map((s) => s.value).filter((to) => canMoveStage(stage, to));
+}
+
+/** Moving here counts as holding the first discovery meeting (mirrors change_lead_stage). */
+function marksDiscovery(to: LeadStage): boolean {
+  return to !== "not_met" && to !== "no_show" && to !== "deferred" && to !== "lost";
 }
 
 function lastStart(lead: Lead): string {
@@ -43,16 +47,21 @@ function detailsFrom(input: LeadFormValues) {
   return {
     companyName: input.companyName.trim(),
     industry: input.industry,
-    companySize: input.companySize,
-    city: input.city,
+    companySize: input.companySize || null,
+    city: input.city.trim(),
     pocName: input.pocName.trim(),
     pocDesignation: input.pocDesignation.trim(),
     pocEmail: input.pocEmail.trim().toLowerCase(),
-    pocPhone: normalizePhone(input.pocPhone),
+    pocPhone: input.pocPhone.trim() ? normalizePhone(input.pocPhone) : "",
     pocLinkedIn: input.pocLinkedIn.trim() || undefined,
     source: input.source,
     priority: input.priority,
     dealValue: input.dealValue,
+    volume: input.volume,
+    responsiveness: input.responsiveness,
+    decisionAccess: input.decisionAccess,
+    timingBudget: input.timingBudget,
+    nextStep: input.nextStep.trim(),
     notes: input.notes.trim(),
   };
 }
@@ -67,17 +76,20 @@ export function buildNewLead(input: LeadFormValues, opts: Actor & { id: string; 
   const lead: Lead = {
     id: opts.id,
     ...detailsFrom(input),
-    stage: "new",
+    stage: "not_met",
     currency: "INR",
+    discoveryDate: null,
+    discoveryMonth: null,
+    sourceStatus: null,
     ownerId: opts.ownerId,
     createdAt: at,
     lastContactedAt: null,
     nextFollowUpAt: followUpIso(input.nextFollowUpDate),
     closedAt: null,
-    stageHistory: [{ stage: "new", startDate: at, endDate: null }],
+    stageHistory: [{ stage: "not_met", startDate: at, endDate: null }],
     activities: [],
   };
-  return { ...lead, activities: addActivity(lead, { type: "note", description: "Lead created", date: at, byUserId: opts.byUserId }) };
+  return { ...lead, activities: addActivity(lead, { type: "note", description: "Account created", date: at, byUserId: opts.byUserId }) };
 }
 
 export function applyLeadEdits(
@@ -120,9 +132,9 @@ export interface StageChangeInput {
 
 export function applyStageChange(lead: Lead, input: StageChangeInput, opts: Actor): Lead {
   if (!allowedNextStages(lead.stage).includes(input.to)) {
-    throw new MutationError(`A ${STAGE_LABELS[lead.stage]} lead cannot move to ${STAGE_LABELS[input.to]}`);
+    throw new MutationError(`An account at ${STAGE_LABELS[lead.stage]} cannot move to ${STAGE_LABELS[input.to]}`);
   }
-  if (input.to === "lost" && !input.lostReason?.trim()) throw new MutationError("Say why the lead was lost");
+  if (input.to === "lost" && !input.lostReason?.trim()) throw new MutationError("Say why the account was lost");
 
   // Keep history strictly ordered even if seed data has a later time today.
   const at = laterThan(opts.at ?? nowIso(TODAY), lastStart(lead));
@@ -142,6 +154,8 @@ export function applyStageChange(lead: Lead, input: StageChangeInput, opts: Acto
     closedAt: closing ? at : null,
     nextFollowUpAt: closing ? null : lead.nextFollowUpAt,
     dealValue: input.to === "won" && input.finalDealValue ? input.finalDealValue : lead.dealValue,
+    discoveryDate: lead.discoveryDate ?? (marksDiscovery(input.to) ? toDateKey(at) : null),
+    discoveryMonth: lead.discoveryMonth ?? (marksDiscovery(input.to) ? toDateKey(at).slice(0, 7) : null),
   };
   return { ...next, activities: addActivity(next, { type: "stage_change", description, date: at, byUserId: opts.byUserId }) };
 }

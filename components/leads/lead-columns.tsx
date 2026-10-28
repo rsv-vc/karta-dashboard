@@ -5,22 +5,22 @@ import Link from "next/link";
 import { UserAvatar } from "@/components/auth/user-avatar";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { FollowUpLabel } from "@/components/leads/follow-up-label";
-import { PriorityBadge } from "@/components/leads/priority-badge";
+import { BandBadge } from "@/components/leads/band-badge";
 import { StageBadge } from "@/components/shared/stage-badge";
-import { PRIORITIES, SOURCE_LABELS, STAGES } from "@/lib/constants";
+import { SOURCE_LABELS, STAGES } from "@/lib/constants";
 import type { LeadRow } from "@/lib/leads/rows";
 import type { AppTableFeatures } from "@/lib/table/features";
-import { formatDate, formatINR, formatINRShort } from "@/lib/utils";
+import { formatDate, formatINR, formatINRShort, formatNumber } from "@/lib/utils";
 
 const helper = createColumnHelper<AppTableFeatures, LeadRow>();
 
 const STAGE_RANK = Object.fromEntries(STAGES.map((s, i) => [s.value, i]));
-const PRIORITY_RANK = Object.fromEntries(PRIORITIES.map((p, i) => [p, i]));
 
 export const LEAD_SORTABLE_IDS = [
   "company",
   "stage",
-  "priority",
+  "score",
+  "volume",
   "dealValue",
   "owner",
   "nextFollowUp",
@@ -41,7 +41,7 @@ export function getLeadColumns(showOwner: boolean) {
             {row.original.companyName}
           </Link>
           <div className="text-xs text-muted-foreground">
-            {row.original.industry} · {row.original.city}
+            {[row.original.industry, row.original.city].filter(Boolean).join(" · ")}
           </div>
         </div>
       ),
@@ -51,7 +51,7 @@ export function getLeadColumns(showOwner: boolean) {
     }),
     helper.accessor("pocName", {
       id: "poc",
-      header: "POC",
+      header: "Contact",
       cell: ({ row }) => (
         <div className="min-w-32">
           <div>{row.original.pocName}</div>
@@ -59,9 +59,9 @@ export function getLeadColumns(showOwner: boolean) {
         </div>
       ),
       enableSorting: false,
-      meta: { label: "POC" },
+      meta: { label: "Contact" },
     }),
-    // Sort by pipeline position (new → won, lost last), not alphabetically.
+    // Sort by pipeline position (not met → won, then the exits), not alphabetically.
     helper.accessor((r) => STAGE_RANK[r.stage], {
       id: "stage",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Stage" />,
@@ -69,21 +69,35 @@ export function getLeadColumns(showOwner: boolean) {
       sortFn: "basic",
       meta: { label: "Stage" },
     }),
-    helper.accessor((r) => PRIORITY_RANK[r.priority], {
-      id: "priority",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Priority" />,
-      cell: ({ row }) => <PriorityBadge priority={row.original.priority} />,
+    helper.accessor("score", {
+      id: "score",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Score" />,
+      cell: ({ row }) => <BandBadge band={row.original.band} score={row.original.score} />,
       sortFn: "basic",
-      meta: { label: "Priority" },
+      meta: { label: "Score" },
+    }),
+    // Unknown volumes sort last.
+    helper.accessor((r) => r.volume ?? undefined, {
+      id: "volume",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Volume" className="ml-auto" />,
+      cell: ({ row }) => (
+        <span className="tabular-nums">{row.original.volume !== null ? formatNumber(row.original.volume) : "—"}</span>
+      ),
+      sortFn: "basic",
+      sortUndefined: "last",
+      meta: { label: "Volume", className: "text-right" },
     }),
     helper.accessor("dealValue", {
       id: "dealValue",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Deal value" className="ml-auto" />,
-      cell: ({ row }) => (
-        <span className="tabular-nums" title={formatINR(row.original.dealValue)}>
-          {formatINRShort(row.original.dealValue)}
-        </span>
-      ),
+      cell: ({ row }) =>
+        row.original.dealValue > 0 ? (
+          <span className="tabular-nums" title={formatINR(row.original.dealValue)}>
+            {formatINRShort(row.original.dealValue)}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
       sortFn: "basic",
       meta: { label: "Deal value", className: "text-right" },
     }),
@@ -102,11 +116,16 @@ export function getLeadColumns(showOwner: boolean) {
     // ISO strings sort correctly as text; leads without a date go last either way.
     helper.accessor((r) => r.nextFollowUpAt ?? undefined, {
       id: "nextFollowUp",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Next follow-up" />,
-      cell: ({ row }) => <FollowUpLabel date={row.original.nextFollowUpAt} />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Next step" />,
+      cell: ({ row }) => (
+        <div className="min-w-40 max-w-64">
+          <FollowUpLabel date={row.original.nextFollowUpAt} />
+          {row.original.nextStep && <div className="truncate text-xs text-muted-foreground">{row.original.nextStep}</div>}
+        </div>
+      ),
       sortFn: "text",
       sortUndefined: "last",
-      meta: { label: "Next follow-up" },
+      meta: { label: "Next step" },
     }),
     helper.accessor((r) => r.lastContactedAt ?? undefined, {
       id: "lastContact",

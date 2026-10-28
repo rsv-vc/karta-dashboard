@@ -1,4 +1,4 @@
-import { PIPELINE_ORDER, TODAY, isActiveStage } from "@/lib/constants";
+import { TODAY, canMoveStage, isActiveStage } from "@/lib/constants";
 import { daysBetween, toDateKey } from "@/lib/dates";
 import type { Lead } from "@/types/lead";
 import type { User } from "@/types/user";
@@ -37,7 +37,8 @@ function checkStageHistory(lead: Lead, seedRules: boolean): string[] {
   const history = lead.stageHistory;
   if (history.length === 0) return ["stageHistory is empty"];
 
-  if (history[0].stage !== "new") problems.push(`history starts at "${history[0].stage}", not "new"`);
+  // Imported accounts start wherever the tracker had them; seeded ones start at "Not met yet".
+  if (seedRules && history[0].stage !== "not_met") problems.push(`history starts at "${history[0].stage}", not "not_met"`);
   if (history[0].startDate !== lead.createdAt) problems.push("first stage does not start at createdAt");
 
   const last = history[history.length - 1];
@@ -53,10 +54,7 @@ function checkStageHistory(lead: Lead, seedRules: boolean): string[] {
     if (entry.endDate === null) problems.push(`${entry.stage} has null endDate but is not the last entry`);
     else if (entry.endDate !== next.startDate) problems.push(`${entry.stage} endDate does not match next startDate`);
 
-    // Forward one step at a time, or exit to "lost" from any active stage.
-    const expectedNext = PIPELINE_ORDER[PIPELINE_ORDER.indexOf(entry.stage) + 1];
-    const legal = next.stage === expectedNext || (next.stage === "lost" && isActiveStage(entry.stage));
-    if (!legal) problems.push(`illegal move ${entry.stage} -> ${next.stage}`);
+    if (!canMoveStage(entry.stage, next.stage)) problems.push(`illegal move ${entry.stage} -> ${next.stage}`);
 
     if (next.startDate <= entry.startDate) problems.push(`${next.stage} does not start after ${entry.stage}`);
     if (seedRules && daysBetween(entry.startDate, next.startDate) < MIN_STAGE_GAP_DAYS) {

@@ -12,13 +12,14 @@ import { ChangeStageDialog } from "@/components/leads/change-stage-dialog";
 import { DeleteLeadButton } from "@/components/leads/delete-lead-button";
 import { FollowUpEditor } from "@/components/leads/follow-up-editor";
 import { LogActivityDialog } from "@/components/leads/log-activity-dialog";
-import { PriorityBadge } from "@/components/leads/priority-badge";
+import { BandBadge } from "@/components/leads/band-badge";
+import { ScoreCard } from "@/components/leads/score-card";
 import { StageHistory } from "@/components/leads/stage-history";
 import { StageStepper } from "@/components/leads/stage-stepper";
 import { PageSkeleton } from "@/components/shared/page-skeleton";
 import { StageBadge } from "@/components/shared/stage-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/dal";
 import { canDeleteLead } from "@/lib/auth/permissions";
 import { COMPANY_SIZE_LABELS, SOURCE_LABELS, isActiveStage } from "@/lib/constants";
@@ -27,7 +28,8 @@ import { fetchTeam } from "@/lib/data/repo";
 import { toDateKey } from "@/lib/dates";
 import { allowedNextStages } from "@/lib/leads/mutations";
 import { nameLookup, type NameOf } from "@/lib/team";
-import { formatDate, formatINR } from "@/lib/utils";
+import { leadBand, leadScore } from "@/lib/scoring";
+import { formatDate, formatINR, formatMonth, formatNumber } from "@/lib/utils";
 import type { Lead, LeadDirectoryEntry } from "@/types/lead";
 
 export const metadata: Metadata = { title: "Lead · Karta Lead Tracker" };
@@ -99,10 +101,10 @@ function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean;
     <PageContainer>
       <PageHeader
         title={lead.companyName}
-        description={`${lead.industry} · ${lead.city}`}
+        description={[lead.industry, lead.city, SOURCE_LABELS[lead.source]].filter(Boolean).join(" · ")}
         actions={
           <>
-            <PriorityBadge priority={lead.priority} />
+            <BandBadge band={leadBand(lead)} score={leadScore(lead)} />
             <StageBadge stage={lead.stage} />
           </>
         }
@@ -147,7 +149,8 @@ function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean;
           {active && (
             <Card>
               <CardHeader>
-                <CardTitle>Next follow-up</CardTitle>
+                <CardTitle>Next step</CardTitle>
+                <CardDescription>{lead.nextStep || "No next step written yet. Add one with Edit."}</CardDescription>
               </CardHeader>
               <CardContent>
                 {/* Keyed by the stored value so it resets when another action changes it. */}
@@ -155,26 +158,31 @@ function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean;
               </CardContent>
             </Card>
           )}
+          <ScoreCard lead={lead} />
           <Card>
             <CardHeader>
               <CardTitle>Details</CardTitle>
             </CardHeader>
             <CardContent>
               <dl className="grid gap-4">
-                <Detail label="POC">
+                <Detail label="Contact">
                   {lead.pocName}
-                  <span className="block text-xs text-muted-foreground">{lead.pocDesignation}</span>
+                  {lead.pocDesignation && <span className="block text-xs text-muted-foreground">{lead.pocDesignation}</span>}
                 </Detail>
-                <Detail label="Email">
-                  <a href={`mailto:${lead.pocEmail}`} className="break-all hover:underline">
-                    {lead.pocEmail}
-                  </a>
-                </Detail>
-                <Detail label="Phone">
-                  <a href={`tel:${lead.pocPhone.replace(/\s/g, "")}`} className="hover:underline">
-                    {lead.pocPhone}
-                  </a>
-                </Detail>
+                {lead.pocEmail && (
+                  <Detail label="Email">
+                    <a href={`mailto:${lead.pocEmail}`} className="break-all hover:underline">
+                      {lead.pocEmail}
+                    </a>
+                  </Detail>
+                )}
+                {lead.pocPhone && (
+                  <Detail label="Phone">
+                    <a href={`tel:${lead.pocPhone.replace(/\s/g, "")}`} className="hover:underline">
+                      {lead.pocPhone}
+                    </a>
+                  </Detail>
+                )}
                 {lead.pocLinkedIn && (
                   <Detail label="LinkedIn">
                     <a href={lead.pocLinkedIn} target="_blank" rel="noreferrer" className="hover:underline">
@@ -182,12 +190,19 @@ function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean;
                     </a>
                   </Detail>
                 )}
+                <Detail label="Volume">
+                  <span className="tabular-nums">{lead.volume !== null ? formatNumber(lead.volume) : "—"}</span>
+                </Detail>
                 <Detail label="Deal value">
-                  <span className="tabular-nums">{formatINR(lead.dealValue)}</span>
+                  <span className="tabular-nums">{lead.dealValue > 0 ? formatINR(lead.dealValue) : "—"}</span>
                 </Detail>
                 <Detail label="Owner">{owner}</Detail>
-                <Detail label="Source">{SOURCE_LABELS[lead.source]}</Detail>
-                <Detail label="Company size">{COMPANY_SIZE_LABELS[lead.companySize]}</Detail>
+                <Detail label="Lead source">{SOURCE_LABELS[lead.source]}</Detail>
+                {lead.sourceStatus && <Detail label="Status in source tracker">{lead.sourceStatus}</Detail>}
+                <Detail label="Discovery">
+                  {lead.discoveryDate ? formatDate(lead.discoveryDate) : lead.discoveryMonth ? formatMonth(lead.discoveryMonth) : "Not held yet"}
+                </Detail>
+                {lead.companySize && <Detail label="Company size">{COMPANY_SIZE_LABELS[lead.companySize]}</Detail>}
                 <Detail label="Created">{formatDate(lead.createdAt)}</Detail>
                 <Detail label="Last contact">{lead.lastContactedAt ? formatDate(lead.lastContactedAt) : "Never"}</Detail>
               </dl>

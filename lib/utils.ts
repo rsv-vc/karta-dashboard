@@ -15,6 +15,13 @@ export function formatINR(value: number): string {
   return inrFormatter.format(value);
 }
 
+const numberFormatter = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+
+/** Whole number with Indian digit grouping, e.g. 150000 -> "1,50,000". */
+export function formatNumber(value: number): string {
+  return numberFormatter.format(value);
+}
+
 /** One decimal place, without a trailing ".0". */
 function oneDecimal(value: number): string {
   return value.toFixed(1).replace(/\.0$/, "");

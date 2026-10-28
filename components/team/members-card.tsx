@@ -83,7 +83,7 @@ export function MembersCard({
           member={dialog.member}
           role={dialog.role}
           status={dialog.status}
-          agents={active.filter((p) => p.role === "sales_agent" && p.id !== dialog.member.id)}
+          agents={active.filter((p) => p.id !== dialog.member.id)}
           onClose={() => setDialog(null)}
         />
       )}
@@ -119,7 +119,7 @@ function MemberItem({
         </div>
         <p className="truncate text-sm text-muted-foreground">
           {m.email} · {m.title || MEMBER_TYPE_LABELS[m.role]}
-          {isAgent && isActive ? ` · ${m.activeLeads} active ${m.activeLeads === 1 ? "lead" : "leads"}` : ""} · joined{" "}
+          {isActive && m.activeLeads > 0 ? ` · ${m.activeLeads} open ${m.activeLeads === 1 ? "account" : "accounts"}` : ""} · joined{" "}
           {formatDate(m.joinedAt)}
         </p>
       </div>
@@ -131,7 +131,7 @@ function MemberItem({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {isAgent && isActive && (
+            {isActive && (isAgent || m.activeLeads > 0) && (
               <DropdownMenuItem onSelect={() => onAction({ kind: "targets", member: m })}>
                 <TargetIcon />
                 Edit targets
@@ -238,8 +238,8 @@ function AccessDialog({
   const [reassignTo, setReassignTo] = useState("");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
-  const leavingSales = member.role === "sales_agent" && (role !== "sales_agent" || status !== "active");
-  const needsRecipient = leavingSales && member.activeLeads > 0;
+  // Only deactivation needs someone to take over open accounts (admins can own accounts too).
+  const needsRecipient = status !== "active" && member.activeLeads > 0;
 
   const copy =
     status === "inactive"
@@ -255,13 +255,13 @@ function AccessDialog({
             body:
               role === "admin"
                 ? "Employees get admin access to every lead, the team and reports. They need a company email address."
-                : "Sales agents see and work only their own leads.",
+                : "Sales agents see and work only their own accounts.",
             action: `Make ${MEMBER_TYPE_LABELS[role].toLowerCase()}`,
           };
 
   function submit() {
     if (needsRecipient && !reassignTo) {
-      setError("Pick who takes over their active leads");
+      setError("Pick who takes over their open accounts");
       return;
     }
     startTransition(async () => {
@@ -286,7 +286,7 @@ function AccessDialog({
         {needsRecipient && (
           <Field data-invalid={Boolean(error)}>
             <FieldLabel htmlFor="reassign-to">
-              Move their {member.activeLeads} active {member.activeLeads === 1 ? "lead" : "leads"} to
+              Move their {member.activeLeads} open {member.activeLeads === 1 ? "account" : "accounts"} to
             </FieldLabel>
             <Select value={reassignTo || undefined} onValueChange={setReassignTo}>
               <SelectTrigger id="reassign-to" className="w-full" aria-invalid={Boolean(error)}>
@@ -300,7 +300,7 @@ function AccessDialog({
                 ))}
               </SelectContent>
             </Select>
-            <FieldDescription>Each lead records the reassignment in its activity.</FieldDescription>
+            <FieldDescription>Each account records the reassignment in its activity.</FieldDescription>
           </Field>
         )}
         {error && (

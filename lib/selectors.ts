@@ -1,5 +1,5 @@
 import { mockLeads } from "@/data/mock-leads";
-import { STAGES, TODAY, isActiveStage } from "@/lib/constants";
+import { PIPELINE_ORDER, STAGES, TODAY, isActiveStage } from "@/lib/constants";
 import { lastDayOfMonth, toDateKey, toMonthKey } from "@/lib/dates";
 import type { Lead, LeadDirectoryEntry, LeadStage } from "@/types/lead";
 
@@ -55,10 +55,10 @@ export interface MonthlySummaryRow extends YearMonth {
   /** "YYYY-MM" */
   key: string;
   newLeads: number;
-  /** Leads that entered "qualified" during the month. */
-  qualified: number;
-  /** Leads that entered "proposal" during the month. */
-  proposals: number;
+  /** Accounts that first reached Discovery done (or beyond) during the month. */
+  discoveries: number;
+  /** Accounts that first reached POC pitched (or beyond) during the month. */
+  pocs: number;
   won: number;
   lost: number;
   wonValue: number;
@@ -68,8 +68,14 @@ export interface MonthlySummaryRow extends YearMonth {
   winRate: number | null;
 }
 
-function enteredStageInMonth(lead: Lead, stage: LeadStage, monthKey: string): boolean {
-  return lead.stageHistory.some((e) => e.stage === stage && e.startDate.startsWith(monthKey));
+/**
+ * Did the account first reach `stage` or a later main-path stage in this month?
+ * Skipped steps still count (an account can go from discovery straight to a POC).
+ */
+export function reachedStageInMonth(lead: Lead, stage: LeadStage, monthKey: string): boolean {
+  const min = PIPELINE_ORDER.indexOf(stage);
+  const first = lead.stageHistory.find((e) => PIPELINE_ORDER.indexOf(e.stage) >= min);
+  return first !== undefined && first.startDate.startsWith(monthKey);
 }
 
 function summarizeMonth(year: number, month: number, leads: Lead[]): MonthlySummaryRow {
@@ -93,8 +99,8 @@ function summarizeMonth(year: number, month: number, leads: Lead[]): MonthlySumm
     month,
     key,
     newLeads: leads.filter((l) => l.createdAt.startsWith(key)).length,
-    qualified: leads.filter((l) => enteredStageInMonth(l, "qualified", key)).length,
-    proposals: leads.filter((l) => enteredStageInMonth(l, "proposal", key)).length,
+    discoveries: leads.filter((l) => reachedStageInMonth(l, "discovery_done", key)).length,
+    pocs: leads.filter((l) => reachedStageInMonth(l, "poc_pitched", key)).length,
     won: wonLeads.length,
     lost,
     wonValue: wonLeads.reduce((sum, l) => sum + l.dealValue, 0),

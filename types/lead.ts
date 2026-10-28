@@ -1,10 +1,15 @@
+/** The Karta sales stages (the MIS workbook's Scoring Guide). */
 export type LeadStage =
-  | "new"
-  | "contacted"
-  | "qualified"
-  | "proposal"
-  | "negotiation"
+  | "not_met"
+  | "no_show"
+  | "discovery_done"
+  | "follow_up"
+  | "technical_round"
+  | "poc_pitched"
+  | "poc_approved"
+  | "poc_ongoing"
   | "won"
+  | "deferred"
   | "lost";
 
 export type LeadSource =
@@ -14,7 +19,10 @@ export type LeadSource =
   | "cold_call"
   | "website"
   | "event"
-  | "partner";
+  | "partner"
+  | "pipeloom"
+  | "voice_bot"
+  | "head_of_growth";
 
 export type LeadPriority = "low" | "medium" | "high";
 
@@ -44,21 +52,36 @@ export interface Lead {
   // Visible to everyone (also part of the masked directory view).
   companyName: string;
   pocName: string;
-  // Contact details: owner and admin only.
+  // Contact details: owner and admin only. Email, phone, city and size are
+  // optional ("" / null): the workbook keeps contacts in the source trackers.
   pocDesignation: string;
   pocEmail: string;
   pocPhone: string;
   pocLinkedIn?: string;
+  /** The account's segment (NBFC, Fintech, …); stored in the industry column. */
   industry: string;
-  companySize: CompanySize;
+  companySize: CompanySize | null;
   city: string;
   source: LeadSource;
   stage: LeadStage;
   priority: LeadPriority;
-  /** Whole rupees. */
+  /** Whole rupees; 0 = not set. */
   dealValue: number;
   currency: "INR";
-  /** References User.id of the owning sales agent. */
+  /** Volume the account would run (e.g. calls a month); null = unknown. */
+  volume: number | null;
+  /** Score inputs (the Scoring Guide): 0–10, 0–10, 0–5. */
+  responsiveness: number;
+  decisionAccess: number;
+  timingBudget: number;
+  /** "YYYY-MM-DD" of the first discovery meeting held, and its month "YYYY-MM". */
+  discoveryDate: string | null;
+  discoveryMonth: string | null;
+  /** What happens next; its date is nextFollowUpAt. */
+  nextStep: string;
+  /** Raw status from an imported source tracker (read only). */
+  sourceStatus: string | null;
+  /** References User.id of the owner (a sales agent or an admin). */
   ownerId: string;
   createdAt: string;
   lastContactedAt: string | null;

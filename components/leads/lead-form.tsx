@@ -36,6 +36,7 @@ import {
   TODAY,
 } from "@/lib/constants";
 import { createLeadSchema, leadFormSchema, type LeadFormValues } from "@/lib/leads/schemas";
+import { SCORE_CRITERIA } from "@/lib/scoring";
 import { formatINR, formatINRShort } from "@/lib/utils";
 
 type Option = { value: string; label: string };
@@ -44,14 +45,13 @@ const toOptions = (values: readonly string[], labels?: Record<string, string>): 
 
 const INDUSTRY_OPTIONS = toOptions(INDUSTRIES);
 const SIZE_OPTIONS = toOptions(COMPANY_SIZES, COMPANY_SIZE_LABELS);
-const CITY_OPTIONS = toOptions(CITIES);
 const SOURCE_OPTIONS = toOptions(SOURCES, SOURCE_LABELS);
 const PRIORITY_OPTIONS = toOptions(PRIORITIES, PRIORITY_LABELS);
 
 type Name = FieldPath<LeadFormValues>;
 
 /**
- * Create / edit form for a lead. Validation runs on the client with the shared
+ * Create / edit form for an account. Validation runs on the client with the shared
  * zod schema and again in the Server Action. A debounced duplicate check warns
  * when the company already exists and requires an explicit "create anyway".
  */
@@ -99,7 +99,7 @@ export function LeadForm({
     startTransition(async () => {
       const result = mode === "create" ? await createLead(values) : await updateLead(leadId!, values);
       if (result.ok) {
-        toast.success(mode === "create" ? "Lead created" : "Lead updated");
+        toast.success(mode === "create" ? "Account created" : "Account updated");
         router.push(`/leads/${result.id}`);
         return;
       }
@@ -116,28 +116,42 @@ export function LeadForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
-      <Section title="Company">
-        <TextField register={register} errors={formState.errors} name="companyName" label="Company name" placeholder="Nimbus Logistics Pvt Ltd" />
+      <Section title="Account">
+        <TextField register={register} errors={formState.errors} name="companyName" label="Company name" placeholder="Nimbus Finance Ltd" />
         {duplicates.length > 0 && (
           <DuplicateWarning matches={duplicates} control={control} error={formState.errors.duplicateAcknowledged?.message} />
         )}
         <div className="grid gap-4 sm:grid-cols-3">
-          <SelectField control={control} name="industry" label="Industry" options={INDUSTRY_OPTIONS} />
-          <SelectField control={control} name="companySize" label="Company size" options={SIZE_OPTIONS} />
-          <SelectField control={control} name="city" label="City" options={CITY_OPTIONS} />
+          <SelectField control={control} name="industry" label="Segment" options={INDUSTRY_OPTIONS} />
+          <SelectField control={control} name="source" label="Lead source" options={SOURCE_OPTIONS} />
+          {ownerOptions ? (
+            <SelectField control={control} name="ownerId" label="Owner" options={ownerOptions} />
+          ) : (
+            <SelectField control={control} name="priority" label="Priority" options={PRIORITY_OPTIONS} />
+          )}
         </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <TextField register={register} errors={formState.errors} name="city" label="City (optional)" placeholder="Mumbai" list="city-options" />
+          <SelectField control={control} name="companySize" label="Company size (optional)" options={SIZE_OPTIONS} />
+          {ownerOptions && <SelectField control={control} name="priority" label="Priority" options={PRIORITY_OPTIONS} />}
+        </div>
+        <datalist id="city-options">
+          {CITIES.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
       </Section>
 
-      <Section title="Point of contact">
+      <Section title="Contact" description="Email and phone are optional: the source trackers may keep them.">
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField register={register} errors={formState.errors} name="pocName" label="Name" placeholder="Asha Rao" />
-          <TextField register={register} errors={formState.errors} name="pocDesignation" label="Designation" placeholder="Head of Procurement" />
-          <TextField register={register} errors={formState.errors} name="pocEmail" label="Email" type="email" placeholder="asha@company.in" />
+          <TextField register={register} errors={formState.errors} name="pocDesignation" label="Title (optional)" placeholder="Head of Customer Support" />
+          <TextField register={register} errors={formState.errors} name="pocEmail" label="Email (optional)" type="email" placeholder="asha@company.in" />
           <TextField
             register={register}
             errors={formState.errors}
             name="pocPhone"
-            label="Mobile"
+            label="Mobile (optional)"
             type="tel"
             placeholder="+91 98765 43210"
           />
@@ -152,19 +166,54 @@ export function LeadForm({
         />
       </Section>
 
-      <Section title="Deal">
+      <Section title="Qualification" description="The score adds stage points to these three. Hot is 30+, Warm 20–29, Nurture 10–19.">
         <div className="grid gap-4 sm:grid-cols-3">
+          {SCORE_CRITERIA.map((c) => (
+            <Field key={c.key} data-invalid={Boolean(formState.errors[c.key])}>
+              <FieldLabel htmlFor={c.key}>
+                {c.label} (0–{c.max})
+              </FieldLabel>
+              <Input
+                id={c.key}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={c.max}
+                aria-invalid={Boolean(formState.errors[c.key])}
+                aria-describedby={`${c.key}-guide`}
+                {...register(c.key, { setValueAs: (v) => (v === "" ? 0 : Number(v)) })}
+              />
+              <FieldDescription id={`${c.key}-guide`}>{c.guide}</FieldDescription>
+              <FieldError errors={[formState.errors[c.key]]} />
+            </Field>
+          ))}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field data-invalid={Boolean(formState.errors.volume)}>
+            <FieldLabel htmlFor="volume">Volume (optional)</FieldLabel>
+            <Input
+              id="volume"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              placeholder="15000"
+              aria-invalid={Boolean(formState.errors.volume)}
+              {...register("volume", { setValueAs: (v) => (v === "" || v === null ? null : Number(v)) })}
+            />
+            <FieldDescription>What the account would run, e.g. calls a month.</FieldDescription>
+            <FieldError errors={[formState.errors.volume]} />
+          </Field>
           <Field data-invalid={Boolean(formState.errors.dealValue)}>
-            <FieldLabel htmlFor="dealValue">Deal value (₹)</FieldLabel>
+            <FieldLabel htmlFor="dealValue">Deal value (₹, optional)</FieldLabel>
             <Input
               id="dealValue"
               type="number"
               inputMode="numeric"
               step={10000}
               min={0}
-              placeholder="1500000"
+              placeholder="0"
               aria-invalid={Boolean(formState.errors.dealValue)}
-              {...register("dealValue", { valueAsNumber: true })}
+              {...register("dealValue", { setValueAs: (v) => (v === "" ? 0 : Number(v)) })}
             />
             {Number.isFinite(dealValue) && dealValue > 0 && (
               <FieldDescription>
@@ -173,19 +222,19 @@ export function LeadForm({
             )}
             <FieldError errors={[formState.errors.dealValue]} />
           </Field>
-          <SelectField control={control} name="priority" label="Priority" options={PRIORITY_OPTIONS} />
-          <SelectField control={control} name="source" label="Source" options={SOURCE_OPTIONS} />
         </div>
-        {ownerOptions && <SelectField control={control} name="ownerId" label="Owner" options={ownerOptions} />}
       </Section>
 
-      <Section title="Follow-up & notes">
+      <Section title="Next step & notes">
         <div className="grid gap-4 sm:grid-cols-3">
+          <div className="sm:col-span-2">
+            <TextField register={register} errors={formState.errors} name="nextStep" label="Next step" placeholder="Follow-up meeting with IT" />
+          </div>
           <TextField
             register={register}
             errors={formState.errors}
             name="nextFollowUpDate"
-            label="Next follow-up (optional)"
+            label="Next step date (optional)"
             type="date"
             min={TODAY}
           />
@@ -203,7 +252,7 @@ export function LeadForm({
         </Button>
         <Button type="submit" disabled={pending}>
           {pending && <LoaderIcon className="animate-spin" />}
-          {mode === "create" ? "Create lead" : "Save changes"}
+          {mode === "create" ? "Create account" : "Save changes"}
         </Button>
       </div>
     </form>
@@ -232,6 +281,7 @@ function TextField({
   type = "text",
   placeholder,
   min,
+  list,
 }: {
   register: UseFormRegister<LeadFormValues>;
   errors: Partial<Record<Name, { message?: string }>>;
@@ -240,12 +290,14 @@ function TextField({
   type?: string;
   placeholder?: string;
   min?: string;
+  /** id of a <datalist> of suggestions. */
+  list?: string;
 }) {
   const error = errors[name];
   return (
     <Field data-invalid={Boolean(error)}>
       <FieldLabel htmlFor={name}>{label}</FieldLabel>
-      <Input id={name} type={type} placeholder={placeholder} min={min} aria-invalid={Boolean(error)} {...register(name)} />
+      <Input id={name} type={type} placeholder={placeholder} min={min} list={list} aria-invalid={Boolean(error)} {...register(name)} />
       <FieldError errors={[error]} />
     </Field>
   );
@@ -258,7 +310,7 @@ function SelectField({
   options,
 }: {
   control: Control<LeadFormValues>;
-  name: "industry" | "companySize" | "city" | "source" | "priority" | "ownerId";
+  name: "industry" | "companySize" | "source" | "priority" | "ownerId";
   label: string;
   options: Option[];
 }) {

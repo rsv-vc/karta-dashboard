@@ -1,5 +1,6 @@
-// Loads the 75 deterministic demo leads (with history and activities) and the
-// monthly targets into Supabase: `npm run db:seed`.
+// Loads the 75 deterministic (fictional) demo leads with history, activities and
+// monthly targets into the TEST project: `DEMO_SEED=true npm run db:seed`
+// (reads .env.test.local). Refuses to run where any real account exists.
 //
 // Signs in as the demo admin with the publishable key, so it works through Row
 // Level Security like the app does (no secret key needed). Users must already
@@ -47,6 +48,13 @@ if (signIn.error) {
   process.exit(1);
 }
 
+// Never wipe a project that has real people in it (the live workspace).
+const real = check("check for real accounts", await supabase.from("profiles").select("id").eq("is_demo", false)) ?? [];
+if (real.length > 0) {
+  console.error(`✗ Refusing: this project has ${real.length} real account(s). Seed only the test project (.env.test.local).`);
+  process.exit(1);
+}
+
 // Wipe (cascades to history and activities), then insert in dependency order.
 check("delete leads", await supabase.from("leads").delete().neq("id", ""));
 check("delete targets", await supabase.from("monthly_targets").delete().neq("new_leads", -1));
@@ -72,12 +80,12 @@ const seq = check("sync lead id sequence", await supabase.rpc("sync_lead_sequenc
 const back = check(
   "read back",
   await supabase.from("leads").select("*, lead_stage_history(*), lead_activities(*)").order("id"),
-) as LeadDbRowWithRelations[];
+) as unknown as LeadDbRowWithRelations[];
 const leads = back.map(toLead);
 const result = validateLeads(leads, { seedRules: true, team: mockUsers });
 
 console.log(`✓ ${leads.length} leads, ${rows.reduce((n, r) => n + r.history.length, 0)} history rows, ${rows.reduce((n, r) => n + r.activities.length, 0)} activities, ${targets.length} targets`);
 console.log(`✓ next lead id will be L-${Number(seq) + 1}`);
 console.log(result.valid ? "✓ data read back from Supabase passes validation" : result.errors.slice(0, 10));
-await supabase.auth.signOut();
+await supabase.auth.signOut({ scope: "local" });
 if (!result.valid) process.exit(1);

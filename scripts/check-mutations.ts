@@ -39,7 +39,7 @@ const isValid = (lead: Lead) => {
 
 const input: LeadFormValues = {
   companyName: "Zenith Retail Solutions",
-  industry: "Retail",
+  industry: "Other",
   companySize: "51-200",
   city: "Pune",
   pocName: "Asha Rao",
@@ -50,6 +50,11 @@ const input: LeadFormValues = {
   source: "referral",
   priority: "high",
   dealValue: 1_500_000,
+  volume: 20_000,
+  responsiveness: 5,
+  decisionAccess: 7,
+  timingBudget: 3,
+  nextStep: "Demo with IT",
   nextFollowUpDate: "",
   notes: "",
   ownerId: "",
@@ -62,6 +67,8 @@ check("bad email rejected", !leadFormSchema.safeParse({ ...input, pocEmail: "nop
 check("bad phone rejected", !leadFormSchema.safeParse({ ...input, pocPhone: "12345" }).success);
 check("past follow-up rejected on create", !createLeadSchema.safeParse({ ...input, nextFollowUpDate: "2026-10-01" }).success);
 check("past follow-up allowed on edit (unchanged overdue)", leadFormSchema.safeParse({ ...input, nextFollowUpDate: "2026-10-01" }).success);
+check("contact details are optional", leadFormSchema.safeParse({ ...input, pocEmail: "", pocPhone: "", city: "", companySize: "" }).success);
+check("scores are bounded", !leadFormSchema.safeParse({ ...input, timingBudget: 6 }).success && !leadFormSchema.safeParse({ ...input, responsiveness: -1 }).success);
 check("normalizePhone", normalizePhone("9876543210") === "+91 98765 43210" && normalizePhone("+91 98765-43210") === "+91 98765 43210");
 
 // Time helpers.
@@ -74,27 +81,31 @@ let lead = buildNewLead(input, { id: "L-2001", ownerId: U.priya, byUserId: U.pri
 check("new lead is valid", isValid(lead));
 check("new lead normalizes email and phone", lead.pocEmail === "asha@zenithsolutions.in" && lead.pocPhone === "+91 98765 43210");
 
-// Walk the pipeline one step at a time.
-check("skipping a stage throws", throws(() => applyStageChange(lead, { to: "proposal" }, { byUserId: U.priya })));
+// Walk the main path one step at a time.
+check("moving backwards throws", throws(() => applyStageChange(applyStageChange(lead, { to: "follow_up" }, { byUserId: U.priya }), { to: "discovery_done" }, { byUserId: U.priya })));
+check("no-show only before discovery", allowedNextStages("not_met").includes("no_show") && !allowedNextStages("follow_up").includes("no_show"));
+check("deferred re-opens onto the main path", allowedNextStages("deferred").includes("follow_up") && !allowedNextStages("deferred").includes("deferred"));
+check("skipping forward is allowed", allowedNextStages("discovery_done").includes("poc_pitched"));
 let ok = true;
-for (const to of ["contacted", "qualified", "proposal", "negotiation", "won"] as const) {
+for (const to of ["discovery_done", "follow_up", "technical_round", "poc_pitched", "poc_approved", "poc_ongoing", "won"] as const) {
   lead = applyStageChange(lead, { to, finalDealValue: to === "won" ? 1_800_000 : undefined }, { byUserId: U.priya, at: "2026-10-28T09:00:00+05:30" });
   ok &&= isValid(lead);
 }
-check("new → won stays valid at every step (timestamps kept ordered)", ok);
+check("not met → won stays valid at every step (timestamps kept ordered)", ok);
+check("the first discovery dates the account", lead.discoveryDate === "2026-10-28" && lead.discoveryMonth === "2026-10");
 check("won sets closedAt and final value", lead.closedAt !== null && lead.dealValue === 1_800_000 && lead.nextFollowUpAt === null);
-check("one stage_change per transition", lead.activities.filter((a) => a.type === "stage_change").length === 5);
+check("one stage_change per transition", lead.activities.filter((a) => a.type === "stage_change").length === 7);
 check("won is terminal", allowedNextStages("won").length === 0 && throws(() => applyStageChange(lead, { to: "lost", lostReason: "x" }, { byUserId: U.priya })));
 check("activity on a closed lead throws", throws(() => applyActivity(lead, { type: "call", description: "Hi", date: TODAY, nextFollowUpDate: "" }, { byUserId: U.priya })));
 
 // Lost needs a reason.
-const proposal = mockLeads.find((l) => l.stage === "proposal")!;
+const proposal = mockLeads.find((l) => l.stage === "poc_pitched")!;
 check("lost without reason throws", throws(() => applyStageChange(proposal, { to: "lost" }, { byUserId: proposal.ownerId })));
 const lost = applyStageChange(proposal, { to: "lost", lostReason: "Went with a competitor" }, { byUserId: proposal.ownerId });
 check("lost with reason is valid", isValid(lost) && lost.activities.at(-1)!.description.endsWith("Went with a competitor"));
 
 // Activities.
-const active = mockLeads.find((l) => l.stage === "qualified" && l.lastContactedAt !== null)!;
+const active = mockLeads.find((l) => l.stage === "follow_up" && l.lastContactedAt !== null)!;
 check("activity before creation throws", throws(() => applyActivity(active, { type: "call", description: "Call", date: "2026-01-01", nextFollowUpDate: "" }, { byUserId: active.ownerId })));
 const called = applyActivity(active, { type: "call", description: "Pricing call", date: TODAY, nextFollowUpDate: "2026-11-03" }, { byUserId: active.ownerId });
 check("a call updates lastContactedAt and follow-up", called.lastContactedAt!.startsWith(TODAY) && called.nextFollowUpAt!.startsWith("2026-11-03") && isValid(called));

@@ -26,7 +26,7 @@ for (const month of months) {
   const s = getMonthlySummary({ year: y, month: m }, { year: y, month: m }, mockLeads)[0];
   const v = Object.fromEntries(report.summary.map((r) => [r.key, r.value]));
   const ok =
-    v.newLeads === s.newLeads && v.qualified === s.qualified && v.proposals === s.proposals && v.won === s.won &&
+    v.newLeads === s.newLeads && v.discoveries === s.discoveries && v.pocs === s.pocs && v.won === s.won &&
     v.lost === s.lost && v.wonValue === s.wonValue && v.pipelineValue === s.pipelineValue;
   check(`${report.monthLabel}: summary matches getMonthlySummary`, ok);
   check(`${report.monthLabel}: Σ agents new/won = summary`, report.agents.reduce((n, a) => n + a.newLeads, 0) === s.newLeads && report.agents.reduce((n, a) => n + a.won, 0) === s.won);

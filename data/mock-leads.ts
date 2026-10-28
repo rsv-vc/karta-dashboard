@@ -11,7 +11,6 @@ import type {
 import {
   CITIES,
   INDUSTRIES,
-  PIPELINE_ORDER,
   STAGE_LABELS,
   isActiveStage,
   type Industry,
@@ -73,12 +72,15 @@ const OWNER_LOSS_WEIGHT: Record<string, number> = {
 const LOST_COUNT = 7;
 const ACTIVE_AND_WON_PLAN: { stage: LeadStage; count: number }[] = [
   { stage: "won", count: 10 },
-  { stage: "negotiation", count: 8 },
-  { stage: "proposal", count: 10 },
-  { stage: "qualified", count: 14 },
-  { stage: "contacted", count: 15 },
-  { stage: "new", count: 11 },
+  { stage: "poc_ongoing", count: 8 },
+  { stage: "poc_pitched", count: 10 },
+  { stage: "follow_up", count: 14 },
+  { stage: "discovery_done", count: 15 },
+  { stage: "not_met", count: 11 },
 ];
+
+/** The main-path stages the fictional data moves through (skipping steps is allowed). */
+const DEMO_PATH: LeadStage[] = ["not_met", "discovery_done", "follow_up", "poc_pitched", "poc_ongoing", "won"];
 
 const MIN_STAGE_GAP = 3;
 const MAX_STAGE_GAP = 25;
@@ -103,14 +105,14 @@ const COMPANY_PREFIXES = [
 ];
 
 const INDUSTRY_WORDS: Record<Industry, string[]> = {
-  SaaS: ["Labs", "Technologies", "Softworks", "Cloud Systems"],
-  FinTech: ["Finserv", "Capital", "Payments", "Fintech"],
-  Healthcare: ["Healthcare", "Diagnostics", "MedTech", "Hospitals"],
-  EdTech: ["Learning", "EduTech", "Academy", "Edu Solutions"],
-  Manufacturing: ["Industries", "Engineering", "Polymers", "Auto Components"],
-  Retail: ["Retail", "Mart", "Stores", "Brands"],
-  Logistics: ["Logistics", "Freight", "Cargo", "Supply Chain"],
-  "Real Estate": ["Realty", "Infra", "Developers", "Estates"],
+  NBFC: ["Finance", "Capital", "Credit", "Finvest"],
+  Fintech: ["Payments", "Fintech", "Pay", "Money"],
+  "Housing finance": ["Home Finance", "Housing Finance", "Homes Credit", "Home Loans"],
+  Bank: ["Bank", "Small Finance Bank", "Co-operative Bank", "Payments Bank"],
+  Insurance: ["Insurance", "General Insurance", "Life", "Assurance"],
+  "Wealth & AMC": ["Wealth", "Asset Management", "Securities", "Investments"],
+  Healthcare: ["Healthcare", "Hospitals", "Diagnostics", "Health"],
+  Other: ["Motors", "Retail", "Logistics", "Technologies"],
 };
 
 const LEGAL_SUFFIXES = [" Pvt Ltd", " Ltd", " LLP", ""];
@@ -280,15 +282,15 @@ function assignStages(skeletons: Skeleton[]): Map<number, StagePlan> {
     (s) => OWNER_LOSS_WEIGHT[s.ownerId] * Math.min(ageOf(s), 90),
     LOST_COUNT,
   );
-  const dropOutWeights = [1, 3, 3, 2, 1]; // new..negotiation
+  const dropOutWeights = [1, 3, 3, 2, 1]; // not_met..poc_ongoing
   for (const s of lost) {
     const feasible = [0, 1, 2, 3, 4].filter((k) => MIN_STAGE_GAP * (k + 1) <= ageOf(s));
     const k = rng.weightedPick(feasible, feasible.map((i) => dropOutWeights[i]));
-    plans.set(s.index, { path: [...PIPELINE_ORDER.slice(0, k + 1), "lost"] });
+    plans.set(s.index, { path: [...DEMO_PATH.slice(0, k + 1), "lost"] });
   }
 
   // Everyone else: rank by age, owner skill and some jitter, then hand out the
-  // most advanced stages first. October leads end up mostly new/contacted.
+  // most advanced stages first. October leads end up mostly not met / discovery done.
   const ranked = skeletons
     .filter((s) => !plans.has(s.index))
     .map((s) => ({ s, score: ageOf(s) * (0.55 + 0.9 * rng.rand()) * OWNER_SKILL[s.ownerId] }))
@@ -300,9 +302,9 @@ function assignStages(skeletons: Skeleton[]): Map<number, StagePlan> {
     for (let i = 0; i < count && cursor < ranked.length; i++, cursor++) {
       const s = ranked[cursor];
       // Safety net: never place a lead further than its age allows.
-      let k = PIPELINE_ORDER.indexOf(stage);
+      let k = DEMO_PATH.indexOf(stage);
       while (MIN_STAGE_GAP * k > ageOf(s)) k--;
-      plans.set(s.index, { path: PIPELINE_ORDER.slice(0, k + 1) });
+      plans.set(s.index, { path: DEMO_PATH.slice(0, k + 1) });
     }
   }
   return plans;
@@ -375,7 +377,7 @@ function priorityFor(dealValue: number): LeadPriority {
 }
 
 function buildIdentity(prefix: string, forcedName: string | undefined): Identity {
-  const industry: Industry = forcedName ? "Retail" : rng.pick(INDUSTRIES);
+  const industry: Industry = forcedName ? "Other" : rng.pick(INDUSTRIES);
   const industryWord = forcedName ? "Retail" : rng.pick(INDUSTRY_WORDS[industry]);
   const brand = forcedName ? "Zenith" : prefix;
   const companyName =
@@ -478,6 +480,52 @@ function nextFollowUp(createdDay: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Sales MIS fields
+// ---------------------------------------------------------------------------
+
+/** Separate stream: adding these fields must not change any earlier draw. */
+const misRng = createRng(20261029);
+
+/** The three MIS channels, mapped from the generator's legacy sources. */
+const CHANNEL: Record<LeadSource, LeadSource> = {
+  partner: "pipeloom",
+  referral: "pipeloom",
+  website: "pipeloom",
+  cold_call: "voice_bot",
+  event: "voice_bot",
+  linkedin: "head_of_growth",
+  cold_email: "head_of_growth",
+  pipeloom: "pipeloom",
+  voice_bot: "voice_bot",
+  head_of_growth: "head_of_growth",
+};
+
+const NEXT_STEPS = [
+  "Follow-up meeting with IT",
+  "Share pricing and ROI calculator",
+  "Callback to confirm the trial",
+  "Demo with the business sponsor",
+  "Send the case study deck",
+  "Set POC success criteria",
+];
+
+function misFields(stage: LeadStage, history: StageHistoryEntry[]) {
+  const advanced = DEMO_PATH.indexOf(stage) >= DEMO_PATH.indexOf("follow_up");
+  const first = history.find((e) => e.stage !== "not_met" && e.stage !== "lost");
+  const discoveryDate = first ? toDateKey(first.startDate) : null;
+  return {
+    volume: misRng.rand() < 0.8 ? misRng.int(5, 80) * 1000 : null,
+    responsiveness: stage === "lost" ? 0 : misRng.pick(advanced ? [5, 7, 10] : [0, 3, 5]),
+    decisionAccess: misRng.pick(advanced ? [7, 10] : [1, 4, 7]),
+    timingBudget: stage === "lost" ? 0 : misRng.pick(advanced ? [3, 5] : [0, 3]),
+    discoveryDate,
+    discoveryMonth: discoveryDate?.slice(0, 7) ?? null,
+    nextStep: isActiveStage(stage) ? misRng.pick(NEXT_STEPS) : "",
+    sourceStatus: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Assemble
 // ---------------------------------------------------------------------------
 
@@ -508,7 +556,7 @@ function generateLeads(): Lead[] {
       industry: identity.industry,
       companySize: identity.companySize,
       city: identity.city,
-      source: identity.source,
+      source: CHANNEL[identity.source],
       stage,
       priority: identity.priority,
       dealValue: identity.dealValue,
@@ -519,6 +567,7 @@ function generateLeads(): Lead[] {
       nextFollowUpAt: active ? nextFollowUp(s.createdDay) : null,
       closedAt,
       notes: identity.notes,
+      ...misFields(stage, stageHistory),
       stageHistory,
       activities,
     };

@@ -1,3 +1,4 @@
+import { leadBand, leadScore, type Band } from "@/lib/scoring";
 import type { NameOf } from "@/lib/team";
 import type { Lead, LeadDirectoryEntry } from "@/types/lead";
 
@@ -17,11 +18,13 @@ export type LeadRow = Pick<
   | "stage"
   | "priority"
   | "dealValue"
+  | "volume"
+  | "nextStep"
   | "ownerId"
   | "createdAt"
   | "lastContactedAt"
   | "nextFollowUpAt"
-> & { ownerName: string };
+> & { ownerName: string; score: number; band: Band };
 
 export type DirectoryRow = LeadDirectoryEntry & { ownerName: string; isMine: boolean };
 
@@ -37,6 +40,10 @@ export function toLeadRow(lead: Lead, nameOf: NameOf): LeadRow {
     stage: lead.stage,
     priority: lead.priority,
     dealValue: lead.dealValue,
+    volume: lead.volume,
+    nextStep: lead.nextStep,
+    score: leadScore(lead),
+    band: leadBand(lead),
     ownerId: lead.ownerId,
     ownerName: nameOf(lead.ownerId),
     createdAt: lead.createdAt,

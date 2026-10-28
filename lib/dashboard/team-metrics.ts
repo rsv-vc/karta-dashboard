@@ -114,10 +114,11 @@ export function computeTeamDashboard(
   const ninety = closedStats(leads, periodStart("90d", today));
   const thisMonthClosed = leads.filter((l) => l.stage === "won" && l.closedAt?.startsWith(monthKey));
 
-  const funnel: FunnelStep[] = PIPELINE_ORDER.map((stage) => ({
+  // "Reached" = got to this stage or any later one (accounts can skip steps).
+  const funnel: FunnelStep[] = PIPELINE_ORDER.map((stage, i) => ({
     stage,
     label: STAGE_LABELS[stage],
-    reached: leads.filter((l) => l.stageHistory.some((e) => e.stage === stage)).length,
+    reached: leads.filter((l) => l.stageHistory.some((e) => PIPELINE_ORDER.indexOf(e.stage) >= i)).length,
     conversion: null,
   }));
   funnel.forEach((step, i) => {
@@ -125,7 +126,7 @@ export function computeTeamDashboard(
   });
 
   const leaderboard = agents
-    .filter((a) => a.role === "sales_agent" && a.status === "active")
+    .filter((a) => a.status === "active" && (a.role === "sales_agent" || leads.some((l) => l.ownerId === a.id)))
     .map((agent): LeaderboardRow => {
       const own = leads.filter((l) => l.ownerId === agent.id);
       const ownActive = own.filter((l) => isActiveStage(l.stage));

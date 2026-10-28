@@ -15,7 +15,8 @@ import { StatusFilter } from "@/components/leads/status-filter";
 import { LeadCardList } from "@/components/leads/lead-cards";
 import { LEAD_SORTABLE_IDS, getLeadColumns } from "@/components/leads/lead-columns";
 import { Button } from "@/components/ui/button";
-import { PRIORITIES, PRIORITY_LABELS, PRIORITY_STYLES, SOURCES, SOURCE_LABELS, STAGES, isActiveStage } from "@/lib/constants";
+import { INDUSTRIES, SOURCES, SOURCE_LABELS, STAGES, isActiveStage } from "@/lib/constants";
+import { BANDS, type Band } from "@/lib/scoring";
 import {
   DEFAULT_FILTERS,
   FOLLOW_UP_BUCKETS,
@@ -29,18 +30,15 @@ import {
 } from "@/lib/leads/filters";
 import type { LeadRow } from "@/lib/leads/rows";
 import { appTableFeatures } from "@/lib/table/features";
-import { formatINRShort } from "@/lib/utils";
-import type { LeadPriority, LeadSource, LeadStage } from "@/types/lead";
+import { formatNumber } from "@/lib/utils";
+import type { LeadSource, LeadStage } from "@/types/lead";
 
 // Most urgent first: overdue follow-ups at the top, leads without one at the bottom.
 const DEFAULT_SORT: SortingState = [{ id: "nextFollowUp", desc: false }];
 
 const STAGE_OPTIONS: FacetOption<LeadStage>[] = STAGES.map((s) => ({ value: s.value, label: s.label, dotClass: s.dotClass }));
-const PRIORITY_OPTIONS: FacetOption<LeadPriority>[] = PRIORITIES.map((p) => ({
-  value: p,
-  label: PRIORITY_LABELS[p],
-  dotClass: PRIORITY_STYLES[p].dotClass,
-}));
+const BAND_OPTIONS: FacetOption<Band>[] = BANDS.map((b) => ({ value: b.value, label: `${b.label} (${b.min}+)` }));
+const SEGMENT_OPTIONS: FacetOption<string>[] = INDUSTRIES.map((s) => ({ value: s, label: s }));
 const SOURCE_OPTIONS: FacetOption<LeadSource>[] = SOURCES.map((s) => ({ value: s, label: SOURCE_LABELS[s] }));
 const FOLLOW_UP_OPTIONS: FacetOption<FollowUpBucket>[] = FOLLOW_UP_BUCKETS.map((b) => ({
   value: b,
@@ -87,7 +85,8 @@ export function LeadsTable({
     autoResetPageIndex: false,
   });
 
-  const openPipeline = filtered.filter((r) => isActiveStage(r.stage)).reduce((sum, r) => sum + r.dealValue, 0);
+  const open = filtered.filter((r) => isActiveStage(r.stage));
+  const openVolume = open.reduce((sum, r) => sum + (r.volume ?? 0), 0);
   const filtering = hasActiveFilters(filters);
   const ownerFacet = ownerOptions.map((o) => ({ value: o.id, label: o.name }));
 
@@ -116,11 +115,18 @@ export function LeadsTable({
         onChange={(stages) => setFilters({ ...filters, stages })}
       />
       <FacetedFilter
-        title="Priority"
-        options={PRIORITY_OPTIONS}
-        selected={filters.priorities}
-        counts={facetCounts(rows, filters, "priorities")}
-        onChange={(priorities) => setFilters({ ...filters, priorities })}
+        title="Band"
+        options={BAND_OPTIONS}
+        selected={filters.bands}
+        counts={facetCounts(rows, filters, "bands")}
+        onChange={(bands) => setFilters({ ...filters, bands })}
+      />
+      <FacetedFilter
+        title="Segment"
+        options={SEGMENT_OPTIONS}
+        selected={filters.segments}
+        counts={facetCounts(rows, filters, "segments")}
+        onChange={(segments) => setFilters({ ...filters, segments })}
       />
       <FacetedFilter
         title="Follow-up"
@@ -198,8 +204,12 @@ export function LeadsTable({
 
       <p className="text-sm text-muted-foreground">
         Showing <span className="font-medium text-foreground tabular-nums">{filtered.length}</span> of{" "}
-        <span className="tabular-nums">{rows.length}</span> leads ·{" "}
-        <span className="font-medium text-foreground tabular-nums">{formatINRShort(openPipeline)}</span> open pipeline
+        <span className="tabular-nums">{rows.length}</span> accounts · <span className="font-medium text-foreground tabular-nums">{open.length}</span> open
+        {openVolume > 0 && (
+          <>
+            {" "}· <span className="font-medium text-foreground tabular-nums">{formatNumber(openVolume)}</span> open volume
+          </>
+        )}
       </p>
 
       <DataTable className="hidden md:block" table={table} getRowHref={(row) => `/leads/${row.id}`} emptyState={noMatches} />

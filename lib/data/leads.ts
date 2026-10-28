@@ -20,7 +20,7 @@ import { toDirectoryRow, toLeadRow, type DirectoryRow, type LeadRow } from "@/li
 import { buildMonthlyReport, type MonthlyReport } from "@/lib/reports/monthly";
 import { getFollowUpsDue } from "@/lib/selectors";
 import { isAdminApiConfigured } from "@/lib/supabase/admin";
-import { activeAgents, nameLookup } from "@/lib/team";
+import { activeOwners, nameLookup } from "@/lib/team";
 import type { Lead, LeadDirectoryEntry, LeadStage } from "@/types/lead";
 import type { Member } from "@/types/user";
 
@@ -84,7 +84,7 @@ export interface OwnerOption {
 /** Active sales agents, for owner filters. */
 export async function getOwnerOptions(): Promise<OwnerOption[]> {
   await requireUser();
-  return activeAgents(await fetchTeam()).map(({ id, name }) => ({ id, name }));
+  return activeOwners(await fetchTeam()).map(({ id, name }) => ({ id, name }));
 }
 
 /** Full lead if the viewer may see it, the masked entry otherwise, or null if it does not exist. */
@@ -176,7 +176,8 @@ export async function getTeamPageData(): Promise<TeamPageData> {
     fetchTeam(),
     fetchAccessRules(),
   ]);
-  const agents = activeAgents(team);
+  // Sales agents, plus any admin who owns accounts (e.g. the Head of Growth).
+  const agents = activeOwners(team).filter((m) => m.role === "sales_agent" || leads.some((l) => l.ownerId === m.id));
   const isStaleLead = (l: Lead) => daysBetween(l.lastContactedAt ?? l.createdAt, TODAY) >= STALE_AFTER_DAYS;
 
   const members = agents.map((a) => {
@@ -204,7 +205,7 @@ export async function getTeamPageData(): Promise<TeamPageData> {
   const people = team.map((m) => ({
     ...m,
     activeLeads: leads.filter((l) => l.ownerId === m.id && isActiveStage(l.stage)).length,
-    target: m.role === "sales_agent" ? targetFor(m.id) : null,
+    target: m.status === "active" ? targetFor(m.id) : null,
   }));
   return {
     members,

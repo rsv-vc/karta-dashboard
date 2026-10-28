@@ -1,4 +1,4 @@
-// Prints the SQL that creates the demo team in Supabase Auth + profiles:
+// Prints the SQL that creates the (fictional) demo team in the TEST project's Auth + profiles:
 // `npx tsx --env-file=.env.local scripts/seed-users-sql.ts > <file>`, then run it
 // in the Supabase SQL editor (or via the MCP execute_sql tool).
 // Only a bcrypt hash of DEMO_PASSWORD is printed, never the password itself.
@@ -45,10 +45,10 @@ identities as (
   where not exists (select 1 from auth.identities i where i.user_id = team.id and i.provider = 'email')
   returning user_id
 )
-insert into public.profiles (id, name, email, role, title, status, joined_at)
-select id, name, email, role, title, status, joined_at from team
+insert into public.profiles (id, name, email, role, title, status, joined_at, is_demo)
+select id, name, email, role, title, status, joined_at, true from team
 on conflict (id) do update set name = excluded.name, email = excluded.email, role = excluded.role,
-  title = excluded.title, status = excluded.status, joined_at = excluded.joined_at;
+  title = excluded.title, status = excluded.status, joined_at = excluded.joined_at, is_demo = true;
 
 -- Freeze the demo calendar (matches NEXT_PUBLIC_APP_TODAY).
 update public.app_settings set today = '2026-10-28';`);

@@ -3,6 +3,105 @@
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+type Rel = {
+  foreignKeyName: string;
+  columns: string[];
+  isOneToOne: false;
+  referencedRelation: string;
+  referencedColumns: string[];
+};
+
+type Enums = {
+  action_status: "open" | "started" | "scheduled" | "pending_approval" | "under_review" | "done";
+  activity_type: "call" | "email" | "meeting" | "note" | "stage_change";
+  app_role: "admin" | "sales_agent";
+  company_size: "1-10" | "11-50" | "51-200" | "201-1000" | "1000+";
+  lead_priority: "low" | "medium" | "high";
+  lead_source:
+    | "linkedin"
+    | "referral"
+    | "cold_email"
+    | "cold_call"
+    | "website"
+    | "event"
+    | "partner"
+    | "pipeloom"
+    | "voice_bot"
+    | "head_of_growth";
+  lead_stage:
+    | "not_met"
+    | "no_show"
+    | "discovery_done"
+    | "follow_up"
+    | "technical_round"
+    | "poc_pitched"
+    | "poc_approved"
+    | "poc_ongoing"
+    | "won"
+    | "deferred"
+    | "lost";
+  user_status: "active" | "inactive";
+};
+
+type LeadRow = {
+  city: string | null;
+  closed_at: string | null;
+  company_name: string;
+  company_size: Enums["company_size"] | null;
+  created_at: string;
+  currency: string;
+  deal_value: number;
+  decision_access: number;
+  discovery_date: string | null;
+  discovery_month: string | null;
+  id: string;
+  industry: string;
+  last_contacted_at: string | null;
+  next_follow_up_at: string | null;
+  next_step: string;
+  notes: string;
+  owner_id: string;
+  poc_designation: string;
+  poc_email: string | null;
+  poc_linkedin: string | null;
+  poc_name: string;
+  poc_phone: string | null;
+  priority: Enums["lead_priority"];
+  responsiveness: number;
+  source: Enums["lead_source"];
+  source_status: string | null;
+  stage: Enums["lead_stage"];
+  timing_budget: number;
+  updated_at: string;
+  volume: number | null;
+};
+
+type FunnelActionRow = {
+  due_label: string;
+  fix: string;
+  funnel: number;
+  id: number;
+  owner_label: string;
+  position: number;
+  problem: string;
+  status: Enums["action_status"];
+  updated_at: string;
+};
+
+type ProfileRow = {
+  email: string;
+  id: string;
+  is_demo: boolean;
+  joined_at: string;
+  must_change_password: boolean;
+  name: string;
+  role: Enums["app_role"];
+  status: Enums["user_status"];
+  title: string;
+};
+
+type MaskedLead = { company_name: string; id: string; owner_id: string; poc_name: string; stage: Enums["lead_stage"] };
+
 export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.18";
@@ -13,20 +112,18 @@ export type Database = {
         Row: { added_at: string; added_by: string | null; email: string };
         Insert: { added_at?: string; added_by?: string | null; email: string };
         Update: { added_at?: string; added_by?: string | null; email?: string };
-        Relationships: [
-          {
-            foreignKeyName: "allowed_emails_added_by_fkey";
-            columns: ["added_by"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [Rel];
       };
       app_settings: {
         Row: { company_domains: string[]; id: boolean; today: string | null };
         Insert: { company_domains?: string[]; id?: boolean; today?: string | null };
         Update: { company_domains?: string[]; id?: boolean; today?: string | null };
+        Relationships: [];
+      };
+      funnel_actions: {
+        Row: FunnelActionRow;
+        Insert: Partial<Omit<FunnelActionRow, "id">> & { funnel: number; problem: string; id?: never };
+        Update: Partial<Omit<FunnelActionRow, "id">> & { id?: never };
         Relationships: [];
       };
       lead_activities: {
@@ -36,7 +133,7 @@ export type Database = {
           description: string;
           id: number;
           lead_id: string;
-          type: Database["public"]["Enums"]["activity_type"];
+          type: Enums["activity_type"];
         };
         Insert: {
           at: string;
@@ -44,7 +141,7 @@ export type Database = {
           description: string;
           id?: never;
           lead_id: string;
-          type: Database["public"]["Enums"]["activity_type"];
+          type: Enums["activity_type"];
         };
         Update: {
           at?: string;
@@ -52,199 +149,39 @@ export type Database = {
           description?: string;
           id?: never;
           lead_id?: string;
-          type?: Database["public"]["Enums"]["activity_type"];
+          type?: Enums["activity_type"];
         };
-        Relationships: [
-          {
-            foreignKeyName: "lead_activities_by_user_id_fkey";
-            columns: ["by_user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "lead_activities_lead_id_fkey";
-            columns: ["lead_id"];
-            isOneToOne: false;
-            referencedRelation: "leads";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [Rel, Rel];
       };
       lead_stage_history: {
-        Row: {
-          end_at: string | null;
-          id: number;
-          lead_id: string;
-          stage: Database["public"]["Enums"]["lead_stage"];
-          start_at: string;
-        };
-        Insert: {
-          end_at?: string | null;
-          id?: never;
-          lead_id: string;
-          stage: Database["public"]["Enums"]["lead_stage"];
-          start_at: string;
-        };
-        Update: {
-          end_at?: string | null;
-          id?: never;
-          lead_id?: string;
-          stage?: Database["public"]["Enums"]["lead_stage"];
-          start_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "lead_stage_history_lead_id_fkey";
-            columns: ["lead_id"];
-            isOneToOne: false;
-            referencedRelation: "leads";
-            referencedColumns: ["id"];
-          },
-        ];
+        Row: { end_at: string | null; id: number; lead_id: string; stage: Enums["lead_stage"]; start_at: string };
+        Insert: { end_at?: string | null; id?: never; lead_id: string; stage: Enums["lead_stage"]; start_at: string };
+        Update: { end_at?: string | null; id?: never; lead_id?: string; stage?: Enums["lead_stage"]; start_at?: string };
+        Relationships: [Rel];
       };
       leads: {
-        Row: {
-          city: string;
-          closed_at: string | null;
-          company_name: string;
-          company_size: Database["public"]["Enums"]["company_size"];
-          created_at: string;
-          currency: string;
-          deal_value: number;
-          id: string;
-          industry: string;
-          last_contacted_at: string | null;
-          next_follow_up_at: string | null;
-          notes: string;
-          owner_id: string;
-          poc_designation: string;
-          poc_email: string;
-          poc_linkedin: string | null;
-          poc_name: string;
-          poc_phone: string;
-          priority: Database["public"]["Enums"]["lead_priority"];
-          source: Database["public"]["Enums"]["lead_source"];
-          stage: Database["public"]["Enums"]["lead_stage"];
-          updated_at: string;
-        };
-        Insert: {
-          city: string;
-          closed_at?: string | null;
-          company_name: string;
-          company_size: Database["public"]["Enums"]["company_size"];
-          created_at?: string;
-          currency?: string;
-          deal_value: number;
-          id?: string;
-          industry: string;
-          last_contacted_at?: string | null;
-          next_follow_up_at?: string | null;
-          notes?: string;
-          owner_id: string;
-          poc_designation?: string;
-          poc_email: string;
-          poc_linkedin?: string | null;
-          poc_name: string;
-          poc_phone: string;
-          priority?: Database["public"]["Enums"]["lead_priority"];
-          source: Database["public"]["Enums"]["lead_source"];
-          stage?: Database["public"]["Enums"]["lead_stage"];
-          updated_at?: string;
-        };
-        Update: {
-          city?: string;
-          closed_at?: string | null;
-          company_name?: string;
-          company_size?: Database["public"]["Enums"]["company_size"];
-          created_at?: string;
-          currency?: string;
-          deal_value?: number;
-          id?: string;
-          industry?: string;
-          last_contacted_at?: string | null;
-          next_follow_up_at?: string | null;
-          notes?: string;
-          owner_id?: string;
-          poc_designation?: string;
-          poc_email?: string;
-          poc_linkedin?: string | null;
-          poc_name?: string;
-          poc_phone?: string;
-          priority?: Database["public"]["Enums"]["lead_priority"];
-          source?: Database["public"]["Enums"]["lead_source"];
-          stage?: Database["public"]["Enums"]["lead_stage"];
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "leads_owner_id_fkey";
-            columns: ["owner_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-        ];
+        Row: LeadRow;
+        Insert: Partial<LeadRow> & Pick<LeadRow, "company_name" | "industry" | "owner_id" | "poc_name" | "source">;
+        Update: Partial<LeadRow>;
+        Relationships: [Rel];
       };
       monthly_targets: {
         Row: { month: string; new_leads: number; user_id: string; won_value: number };
         Insert: { month: string; new_leads: number; user_id: string; won_value: number };
         Update: { month?: string; new_leads?: number; user_id?: string; won_value?: number };
-        Relationships: [
-          {
-            foreignKeyName: "monthly_targets_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [Rel];
       };
       profiles: {
-        Row: {
-          email: string;
-          id: string;
-          is_demo: boolean;
-          joined_at: string;
-          must_change_password: boolean;
-          name: string;
-          role: Database["public"]["Enums"]["app_role"];
-          status: Database["public"]["Enums"]["user_status"];
-          title: string;
-        };
-        Insert: {
-          email: string;
-          id: string;
-          is_demo?: boolean;
-          joined_at?: string;
-          must_change_password?: boolean;
-          name: string;
-          role?: Database["public"]["Enums"]["app_role"];
-          status?: Database["public"]["Enums"]["user_status"];
-          title?: string;
-        };
-        Update: {
-          email?: string;
-          id?: string;
-          is_demo?: boolean;
-          joined_at?: string;
-          must_change_password?: boolean;
-          name?: string;
-          role?: Database["public"]["Enums"]["app_role"];
-          status?: Database["public"]["Enums"]["user_status"];
-          title?: string;
-        };
+        Row: ProfileRow;
+        Insert: Partial<ProfileRow> & Pick<ProfileRow, "email" | "id" | "name">;
+        Update: Partial<ProfileRow>;
         Relationships: [];
       };
     };
     Views: { [_ in never]: never };
     Functions: {
       admin_update_member: {
-        Args: {
-          p_id: string;
-          p_role: Database["public"]["Enums"]["app_role"];
-          p_status: Database["public"]["Enums"]["user_status"];
-        };
+        Args: { p_id: string; p_role: Enums["app_role"]; p_status: Enums["user_status"] };
         Returns: undefined;
       };
       change_lead_stage: {
@@ -253,53 +190,27 @@ export type Database = {
           p_lead_id: string;
           p_lost_reason?: string;
           p_note?: string;
-          p_to: Database["public"]["Enums"]["lead_stage"];
+          p_to: Enums["lead_stage"];
         };
         Returns: undefined;
       };
       create_lead: { Args: { p: Json }; Returns: string };
-      find_possible_duplicates: {
-        Args: { p_exclude_id?: string; p_name: string };
-        Returns: {
-          company_name: string;
-          id: string;
-          owner_id: string;
-          poc_name: string;
-          stage: Database["public"]["Enums"]["lead_stage"];
-        }[];
-      };
-      lead_directory: {
-        Args: never;
-        Returns: {
-          company_name: string;
-          id: string;
-          owner_id: string;
-          poc_name: string;
-          stage: Database["public"]["Enums"]["lead_stage"];
-        }[];
-      };
+      find_possible_duplicates: { Args: { p_exclude_id?: string; p_name: string }; Returns: MaskedLead[] };
+      lead_directory: { Args: never; Returns: MaskedLead[] };
       log_activity: {
         Args: {
           p_date: string;
           p_description: string;
           p_lead_id: string;
           p_next_follow_up?: string;
-          p_type: Database["public"]["Enums"]["activity_type"];
+          p_type: Enums["activity_type"];
         };
         Returns: undefined;
       };
       reassign_leads: { Args: { p_lead_ids: string[]; p_to: string }; Returns: number };
       sync_lead_sequence: { Args: never; Returns: number };
     };
-    Enums: {
-      activity_type: "call" | "email" | "meeting" | "note" | "stage_change";
-      app_role: "admin" | "sales_agent";
-      company_size: "1-10" | "11-50" | "51-200" | "201-1000" | "1000+";
-      lead_priority: "low" | "medium" | "high";
-      lead_source: "linkedin" | "referral" | "cold_email" | "cold_call" | "website" | "event" | "partner";
-      lead_stage: "new" | "contacted" | "qualified" | "proposal" | "negotiation" | "won" | "lost";
-      user_status: "active" | "inactive";
-    };
+    Enums: Enums;
     CompositeTypes: { [_ in never]: never };
   };
 };

@@ -15,8 +15,8 @@
     "check:team": "tsx scripts/check-team.ts",
     "check:reports": "tsx scripts/check-reports.ts",
     "check:accounts": "tsx scripts/check-accounts.ts",
-    "db:seed": "tsx --env-file=.env.local scripts/seed-supabase.mts",
-    "check:rls": "tsx --env-file=.env.local scripts/check-rls.mts",
+    "db:seed": "tsx --env-file=.env.test.local scripts/seed-supabase.mts",
+    "check:rls": "tsx --env-file=.env.test.local scripts/check-rls.mts",
     "check:secrets": "node --env-file-if-exists=.env.local scripts/check-secrets.mjs",
     "test:a11y": "playwright test e2e/a11y.spec.ts --project=desktop",
     "test:e2e": "playwright test e2e/flows.spec.ts"

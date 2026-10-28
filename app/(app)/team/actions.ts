@@ -11,7 +11,7 @@ import { createAdminClient, isAdminApiConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   MEMBER_TYPE_LABELS,
-  activeAgents,
+  activeOwners,
   addMemberSchema,
   allowedEmailSchema,
   generateTempPassword,
@@ -137,13 +137,14 @@ export async function updateMemberAccess(memberId: string, raw: unknown): Promis
   if (!member) return { ok: false, error: "This member no longer exists" };
   const supabase = await createClient();
 
-  const leavingSales = member.role === "sales_agent" && (role !== "sales_agent" || status !== "active");
-  const activeLeadIds = leavingSales
+  // Deactivating someone who owns open accounts moves those accounts first.
+  const deactivating = status !== "active";
+  const activeLeadIds = deactivating
     ? (await fetchVisibleLeads()).filter((l) => l.ownerId === memberId && isActiveStage(l.stage)).map((l) => l.id)
     : [];
   if (activeLeadIds.length > 0) {
-    if (!reassignTo || reassignTo === memberId || !activeAgents(team).some((a) => a.id === reassignTo)) {
-      return { ok: false, error: "Pick the agent who takes over their active leads", fieldErrors: { reassignTo: "Required" } };
+    if (!reassignTo || reassignTo === memberId || !activeOwners(team).some((a) => a.id === reassignTo)) {
+      return { ok: false, error: "Pick who takes over their open accounts", fieldErrors: { reassignTo: "Required" } };
     }
     const { error } = await supabase.rpc("reassign_leads", { p_lead_ids: activeLeadIds, p_to: reassignTo });
     if (error) return { ok: false, error: error.message };
@@ -175,7 +176,7 @@ export async function setMonthlyTarget(raw: unknown): Promise<TeamActionResult> 
   const parsed = targetSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Please fix the highlighted fields", fieldErrors: toFieldErrors(parsed.error) };
   const { userId, month, wonValue, newLeads } = parsed.data;
-  if (!activeAgents(await fetchTeam()).some((a) => a.id === userId)) return { ok: false, error: "Targets are for active sales agents" };
+  if (!activeOwners(await fetchTeam()).some((a) => a.id === userId)) return { ok: false, error: "Targets are for active team members" };
 
   const supabase = await createClient();
   const { error } = await supabase

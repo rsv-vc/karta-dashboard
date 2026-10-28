@@ -17,7 +17,7 @@ import {
   type LeadFormValues,
 } from "@/lib/leads/schemas";
 import { createClient } from "@/lib/supabase/server";
-import { activeAgents, nameLookup } from "@/lib/team";
+import { activeOwners, nameLookup } from "@/lib/team";
 import type { LeadStage } from "@/types/lead";
 import type { SessionUser } from "@/types/user";
 
@@ -50,9 +50,9 @@ function done(id?: string): ActionResult {
   return { ok: true, id };
 }
 
-/** Valid owner for a new or reassigned lead: an active sales agent. */
+/** Valid owner for a new or reassigned account: any active member (agents and admins). */
 async function isAssignableOwner(id: string): Promise<boolean> {
-  return activeAgents(await fetchTeam()).some((a) => a.id === id);
+  return activeOwners(await fetchTeam()).some((a) => a.id === id);
 }
 
 /** Masked matches only: company, owner and stage, whoever owns the lead. */
@@ -79,15 +79,20 @@ function detailColumns(input: LeadFormValues) {
     company_name: input.companyName.trim(),
     poc_name: input.pocName.trim(),
     poc_designation: input.pocDesignation.trim(),
-    poc_email: input.pocEmail.trim().toLowerCase(),
-    poc_phone: normalizePhone(input.pocPhone),
+    poc_email: input.pocEmail.trim().toLowerCase() || null,
+    poc_phone: input.pocPhone.trim() ? normalizePhone(input.pocPhone) : null,
     poc_linkedin: input.pocLinkedIn.trim() || null,
     industry: input.industry,
-    company_size: input.companySize,
-    city: input.city,
+    company_size: input.companySize || null,
+    city: input.city.trim() || null,
     source: input.source,
     priority: input.priority,
     deal_value: input.dealValue,
+    volume: input.volume,
+    responsiveness: input.responsiveness,
+    decision_access: input.decisionAccess,
+    timing_budget: input.timingBudget,
+    next_step: input.nextStep.trim(),
     notes: input.notes.trim(),
   };
 }
@@ -105,10 +110,10 @@ export async function createLead(raw: unknown): Promise<ActionResult> {
   if (!parsed.success) return invalid(parsed.error);
   const input = parsed.data;
 
-  // Agents always own what they create; admins must pick an active agent.
-  const ownerId = isAdmin(user) ? input.ownerId : user.id;
+  // Agents always own what they create; admins pick an owner, defaulting to themselves.
+  const ownerId = isAdmin(user) ? input.ownerId || user.id : user.id;
   if (!(await isAssignableOwner(ownerId))) {
-    return { ok: false, error: "Pick an owner", fieldErrors: { ownerId: "Pick the agent who owns this lead" } };
+    return { ok: false, error: "Pick an owner", fieldErrors: { ownerId: "Pick who owns this account" } };
   }
   if ((await duplicatesFor(input.companyName, user)).length > 0 && !input.duplicateAcknowledged) {
     return { ok: false, error: "possible-duplicate" };
@@ -140,7 +145,7 @@ export async function updateLead(id: string, raw: unknown): Promise<ActionResult
   }
   const reassignTo = canReassignLead(user) && input.ownerId && input.ownerId !== lead.ownerId ? input.ownerId : null;
   if (reassignTo && !(await isAssignableOwner(reassignTo))) {
-    return { ok: false, error: "Pick an owner", fieldErrors: { ownerId: "Pick an active sales agent" } };
+    return { ok: false, error: "Pick an owner", fieldErrors: { ownerId: "Pick an active team member" } };
   }
   const renamed = input.companyName.trim() !== lead.companyName;
   if (renamed && (await duplicatesFor(input.companyName, user, id)).length > 0 && !input.duplicateAcknowledged) {
@@ -241,7 +246,7 @@ export async function reassignLeads(raw: unknown): Promise<ReassignResult> {
   const parsed = reassignSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const { leadIds, toOwnerId } = parsed.data;
-  if (!(await isAssignableOwner(toOwnerId))) return { ok: false, error: "Pick an active sales agent" };
+  if (!(await isAssignableOwner(toOwnerId))) return { ok: false, error: "Pick an active team member" };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("reassign_leads", { p_lead_ids: leadIds, p_to: toOwnerId });

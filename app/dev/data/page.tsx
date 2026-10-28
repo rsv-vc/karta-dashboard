@@ -119,8 +119,8 @@ function MonthlyTable() {
         <TableRow>
           <TableHead>Month</TableHead>
           <TableHead className="text-right">New</TableHead>
-          <TableHead className="text-right">Qualified</TableHead>
-          <TableHead className="text-right">Proposals</TableHead>
+          <TableHead className="text-right">Discoveries</TableHead>
+          <TableHead className="text-right">POCs</TableHead>
           <TableHead className="text-right">Won</TableHead>
           <TableHead className="text-right">Lost</TableHead>
           <TableHead className="text-right">Win rate</TableHead>
@@ -133,8 +133,8 @@ function MonthlyTable() {
           <TableRow key={r.key}>
             <TableCell>{formatMonth(r.key)}</TableCell>
             <TableCell className="text-right tabular-nums">{r.newLeads}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.qualified}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.proposals}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.discoveries}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.pocs}</TableCell>
             <TableCell className="text-right tabular-nums">{r.won}</TableCell>
             <TableCell className="text-right tabular-nums">{r.lost}</TableCell>
             <TableCell className="text-right tabular-nums">
@@ -265,7 +265,7 @@ export default function DevDataPage() {
 
       <Section
         title="Month on month (May–Oct 2026)"
-        description="Event-based: qualified/proposals count leads entering that stage in the month; won/lost by close date."
+        description="Event-based: discoveries/POCs count accounts first reaching that stage or beyond in the month; won/lost by close date."
       >
         <MonthlyTable />
       </Section>

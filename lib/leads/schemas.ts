@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CITIES, COMPANY_SIZES, INDUSTRIES, PRIORITIES, SOURCES, STAGE_VALUES, TODAY } from "@/lib/constants";
+import { COMPANY_SIZES, INDUSTRIES, PRIORITIES, SOURCES, STAGE_VALUES, TODAY } from "@/lib/constants";
 import type { ActivityType } from "@/types/lead";
 
 // Form schemas shared by Client Components (react-hook-form) and Server Actions.
@@ -22,25 +22,36 @@ export function isIndianMobile(raw: string): boolean {
   return /^[6-9]\d{9}$/.test(digits);
 }
 
+const score = (max: number) =>
+  z.number("Enter a score").int("Whole numbers only").min(0, "At least 0").max(max, `At most ${max}`);
+
 export const leadFormSchema = z.object({
   companyName: z.string().trim().min(2, "Enter the company name").max(120),
-  industry: z.enum(INDUSTRIES, "Pick an industry"),
-  companySize: z.enum(COMPANY_SIZES, "Pick a company size"),
-  city: z.enum(CITIES, "Pick a city"),
+  industry: z.enum(INDUSTRIES, "Pick a segment"),
+  /** "" = not known. */
+  companySize: z.enum(["", ...COMPANY_SIZES]),
+  city: z.string().trim().max(60, "Keep the city under 60 characters"),
   pocName: z.string().trim().min(2, "Enter the contact's name").max(80),
-  pocDesignation: z.string().trim().min(2, "Enter their designation").max(80),
-  pocEmail: z.email("Enter a valid email"),
-  pocPhone: z.string().refine(isIndianMobile, "Enter a 10-digit Indian mobile number"),
+  pocDesignation: z.string().trim().max(80),
+  // Contact details are optional: the sales MIS keeps them in the source trackers.
+  pocEmail: z.string().trim().refine((v) => v === "" || z.email().safeParse(v).success, "Enter a valid email or leave empty"),
+  pocPhone: z.string().refine((v) => v.trim() === "" || isIndianMobile(v), "Enter a 10-digit Indian mobile number or leave empty"),
   pocLinkedIn: z
     .string()
     .refine((v) => v === "" || /^https?:\/\/(www\.)?linkedin\.com\/.+/i.test(v), "Enter a linkedin.com URL or leave empty"),
   source: z.enum(SOURCES, "Pick a source"),
   priority: z.enum(PRIORITIES, "Pick a priority"),
+  /** Whole rupees; 0 = not set yet. */
   dealValue: z
-    .number("Enter a deal value in rupees")
+    .number("Enter a deal value in rupees, or 0")
     .int("Use whole rupees")
-    .min(10_000, "Minimum ₹10,000")
+    .min(0, "Cannot be negative")
     .max(1_000_000_000, "Maximum ₹100 crore"),
+  volume: z.number().int("Whole numbers only").min(0, "Cannot be negative").max(1_000_000_000).nullable(),
+  responsiveness: score(10),
+  decisionAccess: score(10),
+  timingBudget: score(5),
+  nextStep: z.string().trim().max(200, "Keep the next step under 200 characters"),
   // Past dates are allowed here so an overdue lead can still be edited; new
   // follow-ups must be today or later (createLeadSchema / the update action).
   nextFollowUpDate: dateOrEmpty,
@@ -78,7 +89,7 @@ export const changeStageSchema = z
   })
   .superRefine((v, ctx) => {
     if (v.to === "lost" && v.lostReason.length < 3) {
-      ctx.addIssue({ code: "custom", path: ["lostReason"], message: "Say why the lead was lost" });
+      ctx.addIssue({ code: "custom", path: ["lostReason"], message: "Say why the account was lost" });
     }
   });
 

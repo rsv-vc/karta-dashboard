@@ -2,11 +2,11 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { UserAvatar } from "@/components/auth/user-avatar";
 import { FollowUpLabel } from "@/components/leads/follow-up-label";
-import { PriorityBadge } from "@/components/leads/priority-badge";
+import { BandBadge } from "@/components/leads/band-badge";
 import { StageBadge } from "@/components/shared/stage-badge";
 import { Badge } from "@/components/ui/badge";
 import type { DirectoryRow, LeadRow } from "@/lib/leads/rows";
-import { cn, formatINRShort } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 
 // Phone layouts of the lead tables: one card per row, the same sorted and
 // paginated rows as the table, so filters, sort and paging behave identically.
@@ -37,16 +37,16 @@ export function LeadCardList({
               <div className="min-w-0">
                 <p className="truncate font-medium">{r.companyName}</p>
                 <p className="truncate text-sm text-muted-foreground">
-                  {r.pocName} · {r.city}
+                  {[r.pocName, r.industry].filter(Boolean).join(" · ")}
                 </p>
               </div>
               <StageBadge stage={r.stage} />
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              <span className="font-medium tabular-nums">{formatINRShort(r.dealValue)}</span>
-              <PriorityBadge priority={r.priority} />
+              <BandBadge band={r.band} score={r.score} />
+              {r.volume !== null && <span className="tabular-nums">Vol. {formatNumber(r.volume)}</span>}
               <span className="inline-flex items-center gap-1">
-                <span className="text-muted-foreground">Follow-up</span>
+                <span className="text-muted-foreground">Next</span>
                 <FollowUpLabel date={r.nextFollowUpAt} />
               </span>
             </div>

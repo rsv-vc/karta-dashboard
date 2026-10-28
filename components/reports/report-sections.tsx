@@ -102,8 +102,8 @@ export function ReportSections({ report }: { report: MonthlyReport }) {
             <TableRow>
               <TableHead>Agent</TableHead>
               <TableHead className="text-right">New</TableHead>
-              <TableHead className="text-right">Qualified</TableHead>
-              <TableHead className="text-right">Proposals</TableHead>
+              <TableHead className="text-right">Discoveries</TableHead>
+              <TableHead className="text-right">POCs</TableHead>
               <TableHead className="text-right">Won</TableHead>
               <TableHead className="text-right">Won value</TableHead>
               <TableHead className="text-right">Lost</TableHead>
@@ -116,8 +116,8 @@ export function ReportSections({ report }: { report: MonthlyReport }) {
               <TableRow key={a.agentId}>
                 <TableCell className="whitespace-nowrap">{a.name}</TableCell>
                 <TableCell className={NUM}>{a.newLeads}</TableCell>
-                <TableCell className={NUM}>{a.qualified}</TableCell>
-                <TableCell className={NUM}>{a.proposals}</TableCell>
+                <TableCell className={NUM}>{a.discoveries}</TableCell>
+                <TableCell className={NUM}>{a.pocs}</TableCell>
                 <TableCell className={NUM}>{a.won}</TableCell>
                 <TableCell className={NUM}>{formatINRShort(a.wonValue)}</TableCell>
                 <TableCell className={NUM}>{a.lost}</TableCell>
