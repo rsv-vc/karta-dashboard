@@ -19,7 +19,7 @@
     "check:rls": "tsx --env-file=.env.local scripts/check-rls.mts",
     "check:secrets": "node --env-file-if-exists=.env.local scripts/check-secrets.mjs",
     "test:a11y": "playwright test e2e/a11y.spec.ts --project=desktop",
-    "test:e2e": "playwright test --grep-invert @a11y"
+    "test:e2e": "playwright test e2e/flows.spec.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",

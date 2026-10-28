@@ -1,5 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Supabase keys and DEMO_PASSWORD for test cleanup (CI passes them as env vars).
+try {
+  process.loadEnvFile(".env.local");
+} catch {
+  // No local env file (CI).
+}
+
 // Browser tests: `npm run test:a11y` (axe scans) and `npm run test:e2e` (core flows).
 // They sign in with the one-click demo accounts, so the target must run with
 // NEXT_PUBLIC_DEMO_MODE=true against the demo Supabase project, never real data.
@@ -21,7 +28,7 @@ export default defineConfig({
     timezoneId: "Asia/Kolkata",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] }, grepInvert: /@mobile/ },
     { name: "mobile", use: { ...devices["Pixel 7"] }, grep: /@mobile/ },
   ],
   webServer: process.env.E2E_BASE_URL
