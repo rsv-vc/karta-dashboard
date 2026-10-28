@@ -12,7 +12,8 @@
     "check:leads": "tsx scripts/check-leads.ts",
     "check:mutations": "tsx scripts/check-mutations.ts",
     "check:dashboard": "tsx scripts/check-dashboard.ts",
-    "check:team": "tsx scripts/check-team.ts"
+    "check:team": "tsx scripts/check-team.ts",
+    "check:reports": "tsx scripts/check-reports.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",
