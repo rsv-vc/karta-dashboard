@@ -23,7 +23,7 @@ export function DevUserSwitcher({ currentUserId, users }: { currentUserId: strin
   }
 
   return (
-    <div className="fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-lg border bg-background/95 p-2 text-xs shadow-lg backdrop-blur">
+    <div className="fixed right-16 bottom-4 z-50 flex items-center gap-2 rounded-lg border bg-background/95 p-2 text-xs shadow-lg backdrop-blur">
       <span className="font-medium text-muted-foreground">Dev · viewing as</span>
       <Select value={currentUserId} onValueChange={handleChange} disabled={pending}>
         <SelectTrigger size="sm" className="w-44">

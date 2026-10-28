@@ -1,20 +1,34 @@
+import { cookies } from "next/headers";
 import { Suspense, type ReactNode } from "react";
 import { DevUserSwitcher } from "@/components/auth/dev-user-switcher";
 import { UserProvider } from "@/components/auth/user-provider";
-import { PageSkeleton } from "@/components/shared/page-skeleton";
+import { AppHeader } from "@/components/layout/app-header";
+import { AppShellSkeleton } from "@/components/layout/app-shell-skeleton";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { mockUsers } from "@/data/mock-users";
 import { requireUser } from "@/lib/auth/dal";
+import { getFollowUpCounts } from "@/lib/data/leads";
 
-// Authenticated area. The session read lives inside Suspense (never a top-level
-// await in the layout). Pages still check access themselves via the DAL, because
-// layouts do not re-run on client navigation.
+// Authenticated app shell. The session read lives inside Suspense (never a
+// top-level await in the layout). Pages still check access themselves via the
+// DAL, because layouts do not re-run on client navigation.
 
 async function AuthGate({ children }: { children: ReactNode }) {
-  const user = await requireUser();
+  const [user, followUps, cookieStore] = await Promise.all([requireUser(), getFollowUpCounts(), cookies()]);
+  // shadcn's sidebar stores its open/collapsed state in this cookie.
+  const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
   const showSwitcher = process.env.NODE_ENV === "development";
+
   return (
     <UserProvider user={user}>
-      {children}
+      <SidebarProvider defaultOpen={sidebarOpen}>
+        <AppSidebar overdueCount={followUps.overdue} />
+        <SidebarInset>
+          <AppHeader />
+          <main className="flex flex-1 flex-col p-4 sm:p-6">{children}</main>
+        </SidebarInset>
+      </SidebarProvider>
       {showSwitcher && (
         <DevUserSwitcher
           currentUserId={user.id}
@@ -27,7 +41,7 @@ async function AuthGate({ children }: { children: ReactNode }) {
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<AppShellSkeleton />}>
       <AuthGate>{children}</AuthGate>
     </Suspense>
   );

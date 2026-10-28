@@ -2,6 +2,7 @@ import "server-only";
 import { mockLeads } from "@/data/mock-leads";
 import { requireUser } from "@/lib/auth/dal";
 import { isAdmin, partitionLeadsForUser, toVisibleLead, type VisibleLead } from "@/lib/auth/permissions";
+import { getFollowUpsDue } from "@/lib/selectors";
 import type { Lead, LeadDirectoryEntry } from "@/types/lead";
 
 // Scoped lead access for pages and Server Actions. Each getter resolves the
@@ -17,6 +18,19 @@ export async function getVisibleLeads(): Promise<{ full: Lead[]; masked: LeadDir
 export async function getMyLeads(): Promise<Lead[]> {
   const user = await requireUser();
   return isAdmin(user) ? mockLeads : mockLeads.filter((l) => l.ownerId === user.id);
+}
+
+export interface FollowUpCounts {
+  overdue: number;
+  today: number;
+  upcoming: number;
+}
+
+/** Follow-up buckets for the current user's leads (all leads for an admin). */
+export async function getFollowUpCounts(): Promise<FollowUpCounts> {
+  const user = await requireUser();
+  const { overdue, today, upcoming } = getFollowUpsDue(isAdmin(user) ? undefined : user.id);
+  return { overdue: overdue.length, today: today.length, upcoming: upcoming.length };
 }
 
 export async function getLeadForViewer(id: string): Promise<VisibleLead | null> {

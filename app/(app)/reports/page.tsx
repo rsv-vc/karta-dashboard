@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
+import { ComingSoon } from "@/components/shared/coming-soon";
 import { PageSkeleton } from "@/components/shared/page-skeleton";
-import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
+import { NAV_ITEMS, getNavTitle } from "@/lib/navigation";
 
 export const metadata: Metadata = { title: "Reports · Karta Lead Tracker" };
 
-// Placeholder proving admin-only access. Real reports arrive in Phase 8.
 export default function ReportsPage() {
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -18,14 +19,13 @@ export default function ReportsPage() {
 
 async function ReportsContent() {
   await requireRole("admin");
-
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 sm:p-8">
-      <h1 className="text-2xl font-semibold">Reports</h1>
-      <p className="text-muted-foreground">Admin only. Monthly reports are coming in Phase 8.</p>
-      <Button asChild variant="outline" className="self-start">
-        <Link href="/dashboard">Back to dashboard</Link>
-      </Button>
-    </main>
+    <PageContainer>
+      <PageHeader title={getNavTitle("reports")} description={NAV_ITEMS.reports.description} />
+      <ComingSoon
+        navKey="reports"
+        features={["Monthly report: new, qualified, won, lost", "Compare date ranges", "CSV export", "Print-friendly view"]}
+      />
+    </PageContainer>
   );
 }
