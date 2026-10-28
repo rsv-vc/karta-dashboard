@@ -23,16 +23,18 @@ export function DataTable<TData extends RowData>({
   table,
   getRowHref,
   emptyState,
+  className,
 }: {
   table: ReactTable<AppTableFeatures, TData>;
   getRowHref?: (row: TData) => string | null;
   emptyState?: ReactNode;
+  className?: string;
 }) {
   const router = useRouter();
   const rows = table.getRowModel().rows;
 
   return (
-    <div className="overflow-x-auto rounded-xl border">
+    <div className={cn("overflow-x-auto rounded-xl border", className)}>
       <Table>
         <TableHeader className="bg-muted/40">
           {table.getHeaderGroups().map((group) => (

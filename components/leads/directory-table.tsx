@@ -9,13 +9,15 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { FacetedFilter, type FacetOption } from "@/components/data-table/faceted-filter";
+import { FilterSheet } from "@/components/data-table/filter-sheet";
 import { SearchInput } from "@/components/data-table/search-input";
 import { useListUrlState } from "@/components/data-table/use-list-url-state";
+import { DirectoryCardList } from "@/components/leads/lead-cards";
 import { StageBadge } from "@/components/shared/stage-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { STAGES } from "@/lib/constants";
-import { DEFAULT_FILTERS, facetCounts, filterLeadRows, hasActiveFilters } from "@/lib/leads/filters";
+import { DEFAULT_FILTERS, facetCounts, facetSelectionCount, filterLeadRows, hasActiveFilters } from "@/lib/leads/filters";
 import type { DirectoryRow } from "@/lib/leads/rows";
 import { appTableFeatures, type AppTableFeatures } from "@/lib/table/features";
 import type { LeadStage } from "@/types/lead";
@@ -92,6 +94,37 @@ export function DirectoryTable({ rows, ownerOptions }: { rows: DirectoryRow[]; o
     setFilters(DEFAULT_FILTERS);
   }
 
+  const noMatches = (
+    <div className="flex flex-col items-center gap-2 text-center">
+      <SearchXIcon className="size-6 text-muted-foreground" />
+      <p className="font-medium">No one is working this company yet</p>
+      <p className="text-sm text-muted-foreground">You are clear to add it as a new lead.</p>
+      <Button asChild size="sm">
+        <Link href="/leads/new">Add lead</Link>
+      </Button>
+    </div>
+  );
+
+  // Inline on wider screens, in the bottom sheet on phones.
+  const facets = (
+    <>
+      <FacetedFilter
+        title="Stage"
+        options={STAGE_OPTIONS}
+        selected={filters.stages}
+        counts={facetCounts(rows, filters, "stages")}
+        onChange={(stages) => setFilters({ ...filters, stages })}
+      />
+      <FacetedFilter
+        title="Owner"
+        options={ownerOptions.map((o) => ({ value: o.id, label: o.name }))}
+        selected={filters.owners}
+        counts={facetCounts(rows, filters, "owners")}
+        onChange={(owners) => setFilters({ ...filters, owners })}
+      />
+    </>
+  );
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
@@ -106,22 +139,12 @@ export function DirectoryTable({ rows, ownerOptions }: { rows: DirectoryRow[]; o
           onChange={(q) => setFilters({ ...filters, q })}
           placeholder="Search companies or POCs…"
         />
-        <FacetedFilter
-          title="Stage"
-          options={STAGE_OPTIONS}
-          selected={filters.stages}
-          counts={facetCounts(rows, filters, "stages")}
-          onChange={(stages) => setFilters({ ...filters, stages })}
-        />
-        <FacetedFilter
-          title="Owner"
-          options={ownerOptions.map((o) => ({ value: o.id, label: o.name }))}
-          selected={filters.owners}
-          counts={facetCounts(rows, filters, "owners")}
-          onChange={(owners) => setFilters({ ...filters, owners })}
-        />
+        <div className="hidden md:contents">{facets}</div>
+        <FilterSheet activeCount={facetSelectionCount(filters)} onReset={reset}>
+          {facets}
+        </FilterSheet>
         {hasActiveFilters(filters) && (
-          <Button variant="ghost" size="sm" className="h-8" onClick={reset}>
+          <Button variant="ghost" size="sm" className="hidden h-8 md:inline-flex" onClick={reset}>
             Reset
             <XIcon />
           </Button>
@@ -132,19 +155,12 @@ export function DirectoryTable({ rows, ownerOptions }: { rows: DirectoryRow[]; o
       </div>
 
       <DataTable
+        className="hidden md:block"
         table={table}
         getRowHref={(row) => (row.isMine ? `/leads/${row.id}` : null)}
-        emptyState={
-          <div className="flex flex-col items-center gap-2 text-center">
-            <SearchXIcon className="size-6 text-muted-foreground" />
-            <p className="font-medium">No one is working this company yet</p>
-            <p className="text-sm text-muted-foreground">You are clear to add it as a new lead.</p>
-            <Button asChild size="sm">
-              <Link href="/leads/new">Add lead</Link>
-            </Button>
-          </div>
-        }
+        emptyState={noMatches}
       />
+      <DirectoryCardList className="md:hidden" rows={table.getRowModel().rows.map((r) => r.original)} empty={noMatches} />
       <DataTablePagination table={table} />
     </div>
   );

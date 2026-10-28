@@ -75,7 +75,7 @@ export function LogActivityDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {compact ? (
-          <Button variant="outline" size="sm" aria-label={companyName ? `Log activity for ${companyName}` : "Log activity"}>
+          <Button variant="outline" size="sm" className="pointer-coarse:h-11" aria-label={companyName ? `Log activity for ${companyName}` : "Log activity"}>
             <PlusIcon />
             Log
           </Button>

@@ -84,6 +84,16 @@ function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean;
   const owner = nameOf(lead.ownerId);
   const allowed = allowedNextStages(lead.stage);
   const active = isActiveStage(lead.stage);
+  const mainActions =
+    allowed.length > 0 || active ? (
+      <>
+        {/* Keyed by stage so the dialog resets its choice after each move. */}
+        {allowed.length > 0 && (
+          <ChangeStageDialog key={lead.stage} leadId={lead.id} current={lead.stage} allowed={allowed} dealValue={lead.dealValue} />
+        )}
+        {active && <LogActivityDialog leadId={lead.id} createdDay={toDateKey(lead.createdAt)} />}
+      </>
+    ) : null;
 
   return (
     <PageContainer>
@@ -99,11 +109,8 @@ function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean;
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        {/* Keyed by stage so the dialog resets its choice after each move. */}
-        {allowed.length > 0 && (
-          <ChangeStageDialog key={lead.stage} leadId={lead.id} current={lead.stage} allowed={allowed} dealValue={lead.dealValue} />
-        )}
-        {active && <LogActivityDialog leadId={lead.id} createdDay={toDateKey(lead.createdAt)} />}
+        {/* The everyday actions sit here on wider screens and in a bottom bar on phones. */}
+        {mainActions && <div className="hidden gap-2 md:flex">{mainActions}</div>}
         <Button asChild variant="outline">
           <Link href={`/leads/${lead.id}/edit`}>
             <PencilIcon />
@@ -206,6 +213,15 @@ function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean;
           </Card>
         </div>
       </div>
+      {mainActions && (
+        <>
+          {/* Phones: thumb-reach bar for the two everyday actions, above the home indicator. */}
+          <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden print:hidden [&>button]:h-11 [&>button]:flex-1">
+            {mainActions}
+          </div>
+          <div className="h-16 md:hidden" aria-hidden="true" />
+        </>
+      )}
     </PageContainer>
   );
 }

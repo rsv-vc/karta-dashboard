@@ -8,9 +8,11 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { FacetedFilter, type FacetOption } from "@/components/data-table/faceted-filter";
+import { FilterSheet } from "@/components/data-table/filter-sheet";
 import { SearchInput } from "@/components/data-table/search-input";
 import { useListUrlState } from "@/components/data-table/use-list-url-state";
 import { StatusFilter } from "@/components/leads/status-filter";
+import { LeadCardList } from "@/components/leads/lead-cards";
 import { LEAD_SORTABLE_IDS, getLeadColumns } from "@/components/leads/lead-columns";
 import { Button } from "@/components/ui/button";
 import { PRIORITIES, PRIORITY_LABELS, PRIORITY_STYLES, SOURCES, SOURCE_LABELS, STAGES, isActiveStage } from "@/lib/constants";
@@ -19,6 +21,7 @@ import {
   FOLLOW_UP_BUCKETS,
   FOLLOW_UP_LABELS,
   facetCounts,
+  facetSelectionCount,
   filterLeadRows,
   hasActiveFilters,
   serializeLeadFilters,
@@ -92,6 +95,59 @@ export function LeadsTable({
     setFilters(DEFAULT_FILTERS);
   }
 
+  const noMatches = (
+    <div className="flex flex-col items-center gap-2 text-center">
+      <SearchXIcon className="size-6 text-muted-foreground" />
+      <p className="font-medium">No leads match these filters</p>
+      <Button variant="outline" size="sm" onClick={reset}>
+        Reset filters
+      </Button>
+    </div>
+  );
+
+  // Inline on wider screens, in the bottom sheet on phones.
+  const facets = (
+    <>
+      <FacetedFilter
+        title="Stage"
+        options={STAGE_OPTIONS}
+        selected={filters.stages}
+        counts={facetCounts(rows, filters, "stages")}
+        onChange={(stages) => setFilters({ ...filters, stages })}
+      />
+      <FacetedFilter
+        title="Priority"
+        options={PRIORITY_OPTIONS}
+        selected={filters.priorities}
+        counts={facetCounts(rows, filters, "priorities")}
+        onChange={(priorities) => setFilters({ ...filters, priorities })}
+      />
+      <FacetedFilter
+        title="Follow-up"
+        options={FOLLOW_UP_OPTIONS}
+        selected={filters.followUp}
+        counts={facetCounts(rows, filters, "followUp")}
+        onChange={(followUp) => setFilters({ ...filters, followUp })}
+      />
+      <FacetedFilter
+        title="Source"
+        options={SOURCE_OPTIONS}
+        selected={filters.sources}
+        counts={facetCounts(rows, filters, "sources")}
+        onChange={(sources) => setFilters({ ...filters, sources })}
+      />
+      {showOwner && (
+        <FacetedFilter
+          title="Owner"
+          options={ownerFacet}
+          selected={filters.owners}
+          counts={facetCounts(rows, filters, "owners")}
+          onChange={(owners) => setFilters({ ...filters, owners })}
+        />
+      )}
+    </>
+  );
+
   if (rows.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-12 text-center">
@@ -115,52 +171,21 @@ export function LeadsTable({
           onChange={(q) => setFilters({ ...filters, q })}
           placeholder="Search company, POC or city…"
         />
-        <FacetedFilter
-          title="Stage"
-          options={STAGE_OPTIONS}
-          selected={filters.stages}
-          counts={facetCounts(rows, filters, "stages")}
-          onChange={(stages) => setFilters({ ...filters, stages })}
-        />
-        <FacetedFilter
-          title="Priority"
-          options={PRIORITY_OPTIONS}
-          selected={filters.priorities}
-          counts={facetCounts(rows, filters, "priorities")}
-          onChange={(priorities) => setFilters({ ...filters, priorities })}
-        />
-        <FacetedFilter
-          title="Follow-up"
-          options={FOLLOW_UP_OPTIONS}
-          selected={filters.followUp}
-          counts={facetCounts(rows, filters, "followUp")}
-          onChange={(followUp) => setFilters({ ...filters, followUp })}
-        />
-        <FacetedFilter
-          title="Source"
-          options={SOURCE_OPTIONS}
-          selected={filters.sources}
-          counts={facetCounts(rows, filters, "sources")}
-          onChange={(sources) => setFilters({ ...filters, sources })}
-        />
-        {showOwner && (
-          <FacetedFilter
-            title="Owner"
-            options={ownerFacet}
-            selected={filters.owners}
-            counts={facetCounts(rows, filters, "owners")}
-            onChange={(owners) => setFilters({ ...filters, owners })}
-          />
-        )}
+        <div className="hidden md:contents">{facets}</div>
+        <FilterSheet activeCount={facetSelectionCount(filters)} onReset={reset}>
+          {facets}
+        </FilterSheet>
         {filtering && (
-          <Button variant="ghost" size="sm" className="h-8" onClick={reset}>
+          <Button variant="ghost" size="sm" className="hidden h-8 md:inline-flex" onClick={reset}>
             Reset
             <XIcon />
           </Button>
         )}
         <div className="ml-auto flex items-center gap-2">
           <StatusFilter value={filters.status} onChange={(status) => setFilters({ ...filters, status })} />
-          <DataTableViewOptions table={table} />
+          <div className="hidden md:block">
+            <DataTableViewOptions table={table} />
+          </div>
           {/* Same filters as the table; the server exports only leads you can see in full. */}
           <Button asChild variant="outline" size="sm" className="h-8">
             <a href={`/leads/export?${serializeLeadFilters(filters).toString()}`} download>
@@ -177,18 +202,12 @@ export function LeadsTable({
         <span className="font-medium text-foreground tabular-nums">{formatINRShort(openPipeline)}</span> open pipeline
       </p>
 
-      <DataTable
-        table={table}
-        getRowHref={(row) => `/leads/${row.id}`}
-        emptyState={
-          <div className="flex flex-col items-center gap-2 text-center">
-            <SearchXIcon className="size-6 text-muted-foreground" />
-            <p className="font-medium">No leads match these filters</p>
-            <Button variant="outline" size="sm" onClick={reset}>
-              Reset filters
-            </Button>
-          </div>
-        }
+      <DataTable className="hidden md:block" table={table} getRowHref={(row) => `/leads/${row.id}`} emptyState={noMatches} />
+      <LeadCardList
+        className="md:hidden"
+        rows={table.getRowModel().rows.map((r) => r.original)}
+        showOwner={showOwner}
+        empty={noMatches}
       />
 
       <DataTablePagination table={table} />

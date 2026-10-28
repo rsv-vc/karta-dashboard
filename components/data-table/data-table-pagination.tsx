@@ -35,6 +35,7 @@ export function DataTablePagination<TData extends RowData>({ table }: { table: R
         <Button
           variant="outline"
           size="icon-sm"
+          className="pointer-coarse:size-11"
           aria-label="First page"
           onClick={() => table.firstPage()}
           disabled={!table.getCanPreviousPage()}
@@ -44,6 +45,7 @@ export function DataTablePagination<TData extends RowData>({ table }: { table: R
         <Button
           variant="outline"
           size="icon-sm"
+          className="pointer-coarse:size-11"
           aria-label="Previous page"
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
@@ -53,6 +55,7 @@ export function DataTablePagination<TData extends RowData>({ table }: { table: R
         <Button
           variant="outline"
           size="icon-sm"
+          className="pointer-coarse:size-11"
           aria-label="Next page"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
@@ -62,6 +65,7 @@ export function DataTablePagination<TData extends RowData>({ table }: { table: R
         <Button
           variant="outline"
           size="icon-sm"
+          className="pointer-coarse:size-11"
           aria-label="Last page"
           onClick={() => table.lastPage()}
           disabled={!table.getCanNextPage()}

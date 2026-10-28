@@ -50,7 +50,7 @@ export function FacetedFilter<T extends string>({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 border-dashed">
+        <Button variant="outline" size="sm" className="h-8 border-dashed pointer-coarse:h-11">
           <PlusCircleIcon />
           {title}
           {selected.length > 0 && (

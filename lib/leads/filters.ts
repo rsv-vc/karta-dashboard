@@ -92,6 +92,11 @@ export function serializeLeadFilters(filters: LeadFilters): URLSearchParams {
   return params;
 }
 
+/** How many facet values are selected (the "Filters · N" count on phones). */
+export function facetSelectionCount(filters: LeadFilters): number {
+  return filters.stages.length + filters.priorities.length + filters.sources.length + filters.owners.length + filters.followUp.length;
+}
+
 export function hasActiveFilters(filters: LeadFilters): boolean {
   return serializeLeadFilters(filters).size > 0;
 }

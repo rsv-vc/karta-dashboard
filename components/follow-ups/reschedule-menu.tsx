@@ -43,7 +43,7 @@ export function RescheduleMenu({ leadId, companyName }: { leadId: string; compan
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" aria-label={`Reschedule follow-up for ${companyName}`}>
+        <Button variant="outline" size="sm" className="pointer-coarse:h-11" aria-label={`Reschedule follow-up for ${companyName}`}>
           <CalendarClockIcon />
           <span className="hidden sm:inline">Reschedule</span>
         </Button>
