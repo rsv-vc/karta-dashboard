@@ -14,3 +14,6 @@ export interface User {
   /** ISO date string. */
   joinedAt: string;
 }
+
+/** The narrow user shape resolved from a session and safe to hand to Client Components. */
+export type SessionUser = Pick<User, "id" | "name" | "email" | "role" | "title">;
