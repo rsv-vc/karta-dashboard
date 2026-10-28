@@ -5,6 +5,7 @@ import { DEFAULT_TARGET, type MonthlyTarget } from "@/data/mock-targets";
 import { toDirectoryEntryFromDb, toLead, type LeadDbRowWithRelations } from "@/lib/data/mappers";
 import { createClient } from "@/lib/supabase/server";
 import type { Lead, LeadDirectoryEntry } from "@/types/lead";
+import type { Database } from "@/types/supabase";
 import type { Member } from "@/types/user";
 
 // Raw reads from Supabase as the signed-in user. Row Level Security decides
@@ -71,6 +72,34 @@ export const fetchLeadSummaries = cache(async (): Promise<Lead[]> => {
   const { data, error } = await supabase.from("leads").select("*").order("id");
   if (error) fail("leads", error);
   return data.map((row) => toLead({ ...row, lead_stage_history: [], lead_activities: [] }));
+});
+
+export type ActionStatus = Database["public"]["Enums"]["action_status"];
+
+export interface FunnelAction {
+  id: number;
+  funnel: 1 | 2 | 3;
+  problem: string;
+  fix: string;
+  owner: string;
+  due: string;
+  status: ActionStatus;
+}
+
+/** The Funnel Health tracker (readable by everyone, edited by admins). */
+export const fetchFunnelActions = cache(async (): Promise<FunnelAction[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("funnel_actions").select("*").order("funnel").order("position").order("id");
+  if (error) fail("funnel health", error);
+  return data.map((a) => ({
+    id: a.id,
+    funnel: a.funnel as 1 | 2 | 3,
+    problem: a.problem,
+    fix: a.fix,
+    owner: a.owner_label,
+    due: a.due_label,
+    status: a.status,
+  }));
 });
 
 /** One lead if this user may see it in full, else null. */

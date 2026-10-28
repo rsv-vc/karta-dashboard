@@ -498,6 +498,7 @@ const CHANNEL: Record<LeadSource, LeadSource> = {
   pipeloom: "pipeloom",
   voice_bot: "voice_bot",
   head_of_growth: "head_of_growth",
+  unknown: "pipeloom",
 };
 
 const NEXT_STEPS = [

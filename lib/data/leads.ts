@@ -5,10 +5,12 @@ import { isAdmin, partitionLeadsForUser, type VisibleLead } from "@/lib/auth/per
 import { TODAY, isActiveStage } from "@/lib/constants";
 import { STALE_AFTER_DAYS, computeAgentDashboard, type AgentDashboard } from "@/lib/dashboard/agent-metrics";
 import { buildFollowUpBoard, type FollowUpBoard } from "@/lib/dashboard/follow-ups";
+import { computeMisOverview } from "@/lib/dashboard/mis";
 import { computeTeamDashboard, type TeamDashboard, type TeamPeriod } from "@/lib/dashboard/team-metrics";
 import {
   fetchAccessRules,
   fetchDirectory,
+  fetchFunnelActions,
   fetchLead,
   fetchLeadSummaries,
   fetchTargets,
@@ -215,6 +217,14 @@ export async function getTeamPageData(): Promise<TeamPageData> {
     canManageAccounts: isAdminApiConfigured(),
     viewerId: viewer.id,
   };
+}
+
+/** The home page for every role: the viewer's accounts (all for admins) and the funnel health tracker. */
+export async function getHomeData() {
+  const user = await requireUser();
+  const [leads, actions] = await Promise.all([fetchLeadSummaries(), fetchFunnelActions()]);
+  const { full } = partitionLeadsForUser(user, leads);
+  return { overview: computeMisOverview(full, { today: TODAY }), actions, canEdit: isAdmin(user) };
 }
 
 /** Admin monthly report; month keys are validated by the page. */

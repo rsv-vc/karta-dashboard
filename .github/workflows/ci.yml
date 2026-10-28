@@ -18,13 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Public values (safe in the browser); placeholders keep forks building.
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co' }}
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_placeholder' }}
+      # The test project (karta-test, fictional data); placeholders keep forks building.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL || 'https://example.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_placeholder' }}
       NEXT_PUBLIC_DEMO_MODE: "true"
       NEXT_PUBLIC_APP_TODAY: "2026-10-28"
-      # Only so check:secrets can look for their values in the client bundles.
-      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-      DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
+      # Only so check:secrets can look for its value in the client bundles.
+      DEMO_PASSWORD: ${{ secrets.TEST_DEMO_PASSWORD }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -46,21 +46,24 @@ jobs:
           npm run check:team
           npm run check:reports
           npm run check:accounts
+          npm run check:home
       - run: npm run build
       - name: No secrets in client bundles
         run: npm run check:secrets
 
   database:
-    name: RLS, end-to-end and accessibility (demo project)
+    name: RLS, end-to-end and accessibility (test project)
     runs-on: ubuntu-latest
     needs: checks
-    # Runs only when the demo project's secrets are configured (not on forks).
+    # Runs only when the test project's secrets are configured (not on forks). Never
+    # touches the live workspace: every URL and key here is karta-test's.
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
     env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-      DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY }}
+      # Optional: the test project's secret key enables the account tests.
+      SUPABASE_SECRET_KEY: ${{ secrets.TEST_SUPABASE_SECRET_KEY }}
+      DEMO_PASSWORD: ${{ secrets.TEST_DEMO_PASSWORD }}
       NEXT_PUBLIC_DEMO_MODE: "true"
       NEXT_PUBLIC_APP_TODAY: "2026-10-28"
     steps:
@@ -68,7 +71,7 @@ jobs:
         id: gate
         run: |
           if [ -z "$DEMO_PASSWORD" ] || [ -z "$NEXT_PUBLIC_SUPABASE_URL" ]; then
-            echo "Demo project secrets are not set; skipping database and browser tests."
+            echo "Test project secrets are not set; skipping database and browser tests."
             echo "run=false" >> "$GITHUB_OUTPUT"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"

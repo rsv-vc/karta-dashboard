@@ -2,7 +2,7 @@ import {
   BarChart3Icon,
   BellRingIcon,
   BookUserIcon,
-  LayoutDashboardIcon,
+  HouseIcon,
   PlusIcon,
   SettingsIcon,
   UsersIcon,
@@ -43,11 +43,11 @@ export const NAV_ITEMS: Record<NavKey, NavItem> = {
   dashboard: {
     key: "dashboard",
     href: "/dashboard",
-    icon: LayoutDashboardIcon,
-    label: { sales_agent: "My dashboard", admin: "Team overview" },
+    icon: HouseIcon,
+    label: "Home",
     roles: ALL_ROLES,
     phase: 6,
-    description: "Your pipeline at a glance.",
+    description: "Pipeline overview, monthly funnel, next steps and funnel health.",
   },
   leads: {
     key: "leads",

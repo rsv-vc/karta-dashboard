@@ -27,7 +27,8 @@ type Enums = {
     | "partner"
     | "pipeloom"
     | "voice_bot"
-    | "head_of_growth";
+    | "head_of_growth"
+    | "unknown";
   lead_stage:
     | "not_met"
     | "no_show"

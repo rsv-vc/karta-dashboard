@@ -135,6 +135,7 @@ export const SOURCE_LABELS: Record<LeadSource, string> = {
   pipeloom: "Pipeloom",
   voice_bot: "Voice Bot campaign",
   head_of_growth: "Head of Growth",
+  unknown: "Not recorded",
 };
 
 /** The three channels the sales MIS tracks, in the order its tables show them. */

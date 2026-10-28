@@ -4,8 +4,20 @@ import { expect, type Page } from "@playwright/test";
 export type DemoUser = "Admin User" | "Priya Sharma" | "Rohan Mehta" | "Ananya Iyer" | "Karan Singh";
 export type Theme = "light" | "dark";
 
+/** Dev-only overlays (the "viewing as" switcher) can sit on top of controls in local runs. */
+async function hideDevTools(page: Page) {
+  await page.addInitScript(() => {
+    document.addEventListener("DOMContentLoaded", () => {
+      const style = document.createElement("style");
+      style.textContent = "[data-dev-only], nextjs-portal { display: none !important; }";
+      document.head.append(style);
+    });
+  });
+}
+
 /** Signs in with a one-click demo account (demo mode only) and waits for the dashboard. */
 export async function signInAs(page: Page, user: DemoUser) {
+  await hideDevTools(page);
   await page.goto("/login");
   await page.getByRole("button", { name: `Sign in as ${user}` }).click();
   await page.waitForURL("**/dashboard");

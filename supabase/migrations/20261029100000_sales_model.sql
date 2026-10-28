@@ -64,6 +64,8 @@ grant execute on function private.stage_label(public.lead_stage) to authenticate
 alter type public.lead_source add value if not exists 'pipeloom';
 alter type public.lead_source add value if not exists 'voice_bot';
 alter type public.lead_source add value if not exists 'head_of_growth';
+-- Imported customers whose channel the tracker never recorded.
+alter type public.lead_source add value if not exists 'unknown';
 
 -- Account fields ---------------------------------------------------------------------
 alter table public.leads

@@ -8,7 +8,7 @@ export function BandBadge({ band, score, className }: { band: Band; score?: numb
   return (
     <Badge variant="outline" className={cn("border-transparent font-medium", config.badgeClass, className)}>
       {config.label}
-      {score !== undefined && <span className="tabular-nums opacity-80">· {score}</span>}
+      {score !== undefined && <span className="tabular-nums"> · {score}</span>}
     </Badge>
   );
 }

@@ -22,7 +22,8 @@ export type LeadSource =
   | "partner"
   | "pipeloom"
   | "voice_bot"
-  | "head_of_growth";
+  | "head_of_growth"
+  | "unknown";
 
 export type LeadPriority = "low" | "medium" | "high";
 

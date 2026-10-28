@@ -22,6 +22,15 @@ import { STAGE_LABELS } from "@/lib/constants";
 import { changeStageSchema, toFieldErrors } from "@/lib/leads/schemas";
 import type { LeadStage } from "@/types/lead";
 
+/** What picking this stage means, in words. */
+function optionLabel(current: LeadStage, stage: LeadStage): string {
+  if (stage === "lost") return "Mark as lost";
+  if (stage === "deferred") return "Defer (interested, later)";
+  if (stage === "no_show") return "Mark as no-show (missed the discovery)";
+  if (current === "deferred" || current === "no_show") return `Re-open at ${STAGE_LABELS[stage]}`;
+  return `Advance to ${STAGE_LABELS[stage]}`;
+}
+
 /** Move a lead one step forward, or mark it lost with a reason. */
 export function ChangeStageDialog({
   leadId,
@@ -80,7 +89,9 @@ export function ChangeStageDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Change stage</DialogTitle>
-          <DialogDescription>Currently {STAGE_LABELS[current]}. Leads move one step at a time, or drop out as lost.</DialogDescription>
+          <DialogDescription>
+            Currently {STAGE_LABELS[current]}. Move forward (skipping steps is fine), defer it, or mark it lost.
+          </DialogDescription>
         </DialogHeader>
         <FieldGroup>
           <RadioGroup value={to} onValueChange={(v) => setTo(v as LeadStage)} aria-label="New stage">
@@ -88,7 +99,7 @@ export function ChangeStageDialog({
               <Field key={stage} orientation="horizontal">
                 <RadioGroupItem value={stage} id={`stage-${stage}`} />
                 <FieldLabel htmlFor={`stage-${stage}`} className="font-normal">
-                  {stage === "lost" ? "Mark as lost" : `Advance to ${STAGE_LABELS[stage]}`}
+                  {optionLabel(current, stage)}
                 </FieldLabel>
               </Field>
             ))}

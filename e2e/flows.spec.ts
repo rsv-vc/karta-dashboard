@@ -39,27 +39,30 @@ test("agent creates a lead through the duplicate warning", async ({ page }) => {
   await settled(page);
 
   await page.getByLabel("Company name").fill(COMPANY);
-  await pick(page, "Industry");
-  await pick(page, "Company size");
-  await pick(page, "City");
+  await pick(page, "Segment", "NBFC");
+  await pick(page, "Lead source", "Pipeloom");
+  await page.getByLabel("City (optional)").fill("Mumbai");
   await page.getByLabel("Name", { exact: true }).fill("Test Contact");
-  await page.getByLabel("Designation").fill("Head of Testing");
-  await page.getByLabel("Email", { exact: true }).fill("test.contact@example.com");
-  await page.getByLabel("Mobile").fill("+91 98765 43210");
-  await page.getByLabel("Deal value (₹)").fill("500000");
-  await pick(page, "Source");
+  await page.getByLabel("Title (optional)").fill("Head of Testing");
+  await page.getByLabel("Responsiveness (0–10)").fill("10");
+  await page.getByLabel("Decision access (0–10)").fill("7");
+  await page.getByLabel("Timing / budget (0–5)").fill("3");
+  await page.getByLabel("Volume (optional)").fill("20000");
+  await page.getByLabel("Next step", { exact: true }).fill("Discovery call");
 
   // "Zenith Retail …" matches the seeded Zenith leads: a masked warning appears.
   const confirm = page.getByLabel(/this is a different company/);
   await expect(confirm).toBeVisible();
-  await page.getByRole("button", { name: "Create lead" }).click();
+  await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByText(/Confirm/).first()).toBeVisible();
   await confirm.check();
-  await page.getByRole("button", { name: "Create lead" }).click();
+  await page.getByRole("button", { name: "Create account" }).click();
 
   await page.waitForURL(/\/leads\/L-\d+$/);
   leadPath = new URL(page.url()).pathname;
   await expect(page.getByRole("heading", { name: COMPANY })).toBeVisible();
+  // Score = Not met yet 1 + 10 + 7 + 3 = 21 → Warm.
+  await expect(page.getByText("Warm · 21").first()).toBeVisible();
 });
 
 test("agent moves it forward, logs a call and reschedules", async ({ page }) => {
@@ -68,9 +71,10 @@ test("agent moves it forward, logs a call and reschedules", async ({ page }) => 
   await settled(page);
 
   await page.getByRole("button", { name: "Change stage" }).click();
-  await page.getByLabel("Advance to Contacted").check();
-  await page.getByRole("button", { name: "Move to Contacted" }).click();
-  await expect(page.getByText("Moved to Contacted")).toBeVisible();
+  // Skipping ahead is allowed: straight to the bot / technical round.
+  await page.getByLabel("Advance to Bot / technical round").check();
+  await page.getByRole("button", { name: "Move to Bot / technical round" }).click();
+  await expect(page.getByText("Moved to Bot / technical round")).toBeVisible();
 
   await page.getByRole("button", { name: "Log activity" }).click();
   const dialog = page.getByRole("dialog");

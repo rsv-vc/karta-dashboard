@@ -156,6 +156,7 @@ export function DirectoryTable({ rows, ownerOptions }: { rows: DirectoryRow[]; o
 
       <DataTable
         className="hidden md:block"
+        label="Lead directory"
         table={table}
         getRowHref={(row) => (row.isMine ? `/leads/${row.id}` : null)}
         emptyState={noMatches}

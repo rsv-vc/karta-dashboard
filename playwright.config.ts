@@ -1,17 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Supabase keys and DEMO_PASSWORD for test cleanup (CI passes them as env vars).
+// Browser tests: `npm run test:e2e` (core flows) and `npm run test:a11y` (axe scans).
+// They run ONLY against the test project (karta-test, fictional demo data): the
+// app is started on port 3100 with .env.test.local, never the live workspace.
+// Locally they reuse a running `npm run dev:test`; in CI they build and start the
+// app with the test project's settings from the environment.
 try {
-  process.loadEnvFile(".env.local");
+  process.loadEnvFile(".env.test.local");
 } catch {
-  // No local env file (CI).
+  // No local test env file (CI passes the variables directly).
 }
 
-// Browser tests: `npm run test:a11y` (axe scans) and `npm run test:e2e` (core flows).
-// They sign in with the one-click demo accounts, so the target must run with
-// NEXT_PUBLIC_DEMO_MODE=true against the demo Supabase project, never real data.
-// Locally they reuse a running `npm run dev`; in CI they build and start the app.
-const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+const baseURL = "http://localhost:3100";
 
 export default defineConfig({
   testDir: "e2e",
@@ -31,12 +31,10 @@ export default defineConfig({
     { name: "desktop", use: { ...devices["Desktop Chrome"] }, grepInvert: /@mobile/ },
     { name: "mobile", use: { ...devices["Pixel 7"] }, grep: /@mobile/ },
   ],
-  webServer: process.env.E2E_BASE_URL
-    ? undefined
-    : {
-        command: process.env.CI ? "npm run build && npm run start" : "npm run dev",
-        url: baseURL,
-        reuseExistingServer: !process.env.CI,
-        timeout: 300_000,
-      },
+  webServer: {
+    command: process.env.CI ? "npm run build && npx next start -p 3100" : "npm run dev:test",
+    url: baseURL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 300_000,
+  },
 });

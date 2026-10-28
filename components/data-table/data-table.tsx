@@ -24,18 +24,21 @@ export function DataTable<TData extends RowData>({
   getRowHref,
   emptyState,
   className,
+  label = "Results",
 }: {
   table: ReactTable<AppTableFeatures, TData>;
   getRowHref?: (row: TData) => string | null;
   emptyState?: ReactNode;
   className?: string;
+  /** Names the scroll area for keyboard and screen-reader users. */
+  label?: string;
 }) {
   const router = useRouter();
   const rows = table.getRowModel().rows;
 
   return (
     <div className={cn("overflow-x-auto rounded-xl border", className)}>
-      <Table>
+      <Table scrollLabel={label}>
         <TableHeader className="bg-muted/40">
           {table.getHeaderGroups().map((group) => (
             <TableRow key={group.id} className="hover:bg-transparent">

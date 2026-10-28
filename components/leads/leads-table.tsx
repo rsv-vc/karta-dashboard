@@ -212,7 +212,7 @@ export function LeadsTable({
         )}
       </p>
 
-      <DataTable className="hidden md:block" table={table} getRowHref={(row) => `/leads/${row.id}`} emptyState={noMatches} />
+      <DataTable className="hidden md:block" label="Accounts" table={table} getRowHref={(row) => `/leads/${row.id}`} emptyState={noMatches} />
       <LeadCardList
         className="md:hidden"
         rows={table.getRowModel().rows.map((r) => r.original)}
