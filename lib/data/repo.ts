@@ -5,7 +5,7 @@ import { DEFAULT_TARGET, type MonthlyTarget } from "@/data/mock-targets";
 import { toDirectoryEntryFromDb, toLead, type LeadDbRowWithRelations } from "@/lib/data/mappers";
 import { createClient } from "@/lib/supabase/server";
 import type { Lead, LeadDirectoryEntry } from "@/types/lead";
-import type { User } from "@/types/user";
+import type { Member } from "@/types/user";
 
 // Raw reads from Supabase as the signed-in user. Row Level Security decides
 // what comes back: agents get their own leads, admins get all of them. Each
@@ -20,13 +20,13 @@ function fail(what: string, error: { message: string }): never {
 }
 
 /** The whole team from profiles (every signed-in user may read it), sorted by name. */
-export const fetchTeam = cache(async (): Promise<User[]> => {
+export const fetchTeam = cache(async (): Promise<Member[]> => {
   // Often fetched in parallel with the session check: keep it out of prerendering too.
   await connection();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, email, role, title, status, joined_at")
+    .select("id, name, email, role, title, status, joined_at, must_change_password, is_demo")
     .order("name");
   if (error) fail("the team", error);
   return data.map((p) => ({
@@ -37,7 +37,21 @@ export const fetchTeam = cache(async (): Promise<User[]> => {
     title: p.title,
     status: p.status,
     joinedAt: p.joined_at,
+    mustChangePassword: p.must_change_password,
+    isDemo: p.is_demo,
   }));
+});
+
+/** Company domains and the outside emails allowed for agents (the list is admin-only under RLS). */
+export const fetchAccessRules = cache(async (): Promise<{ companyDomains: string[]; allowedEmails: string[] }> => {
+  const supabase = await createClient();
+  const [settings, allowed] = await Promise.all([
+    supabase.from("app_settings").select("company_domains").single(),
+    supabase.from("allowed_emails").select("email").order("email"),
+  ]);
+  if (settings.error) fail("settings", settings.error);
+  if (allowed.error) fail("allowed emails", allowed.error);
+  return { companyDomains: settings.data.company_domains, allowedEmails: allowed.data.map((r) => r.email) };
 });
 
 /** Every lead this user may see in full, with history and activities. */

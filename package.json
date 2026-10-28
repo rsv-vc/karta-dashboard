@@ -14,8 +14,10 @@
     "check:dashboard": "tsx scripts/check-dashboard.ts",
     "check:team": "tsx scripts/check-team.ts",
     "check:reports": "tsx scripts/check-reports.ts",
+    "check:accounts": "tsx scripts/check-accounts.ts",
     "db:seed": "tsx --env-file=.env.local scripts/seed-supabase.mts",
-    "check:rls": "tsx --env-file=.env.local scripts/check-rls.mts"
+    "check:rls": "tsx --env-file=.env.local scripts/check-rls.mts",
+    "check:secrets": "node --env-file-if-exists=.env.local scripts/check-secrets.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",

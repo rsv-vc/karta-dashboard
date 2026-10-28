@@ -6,13 +6,15 @@ import { TODAY, isActiveStage } from "@/lib/constants";
 import { STALE_AFTER_DAYS, computeAgentDashboard, type AgentDashboard } from "@/lib/dashboard/agent-metrics";
 import { buildFollowUpBoard, type FollowUpBoard } from "@/lib/dashboard/follow-ups";
 import { computeTeamDashboard, type TeamDashboard, type TeamPeriod } from "@/lib/dashboard/team-metrics";
-import { fetchDirectory, fetchLead, fetchTargets, fetchTeam, fetchVisibleLeads } from "@/lib/data/repo";
+import { fetchAccessRules, fetchDirectory, fetchLead, fetchTargets, fetchTeam, fetchVisibleLeads } from "@/lib/data/repo";
 import { daysBetween } from "@/lib/dates";
 import { toDirectoryRow, toLeadRow, type DirectoryRow, type LeadRow } from "@/lib/leads/rows";
 import { buildMonthlyReport, type MonthlyReport } from "@/lib/reports/monthly";
 import { getFollowUpsDue } from "@/lib/selectors";
+import { isAdminApiConfigured } from "@/lib/supabase/admin";
 import { activeAgents, nameLookup } from "@/lib/team";
 import type { Lead, LeadDirectoryEntry, LeadStage } from "@/types/lead";
+import type { Member } from "@/types/user";
 
 // Scoped lead access for pages and Server Actions. Each getter resolves the
 // current user itself, and the database's Row Level Security limits what each
@@ -138,13 +140,32 @@ export interface ReassignableLead {
   stale: boolean;
 }
 
-/** Everything the /team page needs: per-agent summaries and the active leads that can be moved. */
-export async function getTeamPageData(): Promise<{ members: TeamMember[]; leads: ReassignableLead[] }> {
-  await requireRole("admin");
-  const [leads, targetFor, team] = await Promise.all([
+/** A row of the admin "Members & access" table. */
+export interface MemberRow extends Member {
+  activeLeads: number;
+  /** This month's targets (sales agents only). */
+  target: { wonValue: number; newLeads: number } | null;
+}
+
+export interface TeamPageData {
+  members: TeamMember[];
+  leads: ReassignableLead[];
+  people: MemberRow[];
+  companyDomains: string[];
+  allowedEmails: string[];
+  /** Whether the server can create accounts and set passwords (SUPABASE_SECRET_KEY). */
+  canManageAccounts: boolean;
+  viewerId: string;
+}
+
+/** Everything the /team page needs: agent summaries, movable leads, and every member's access. */
+export async function getTeamPageData(): Promise<TeamPageData> {
+  const viewer = await requireRole("admin");
+  const [leads, targetFor, team, rules] = await Promise.all([
     fetchVisibleLeads(),
     fetchTargets(TODAY.slice(0, 7)),
     fetchTeam(),
+    fetchAccessRules(),
   ]);
   const agents = activeAgents(team);
   const isStaleLead = (l: Lead) => daysBetween(l.lastContactedAt ?? l.createdAt, TODAY) >= STALE_AFTER_DAYS;
@@ -171,7 +192,19 @@ export async function getTeamPageData(): Promise<{ members: TeamMember[]; leads:
       stale: isStaleLead(l),
     }))
     .sort((a, b) => a.companyName.localeCompare(b.companyName));
-  return { members, leads: reassignable };
+  const people = team.map((m) => ({
+    ...m,
+    activeLeads: leads.filter((l) => l.ownerId === m.id && isActiveStage(l.stage)).length,
+    target: m.role === "sales_agent" ? targetFor(m.id) : null,
+  }));
+  return {
+    members,
+    leads: reassignable,
+    people,
+    ...rules,
+    canManageAccounts: isAdminApiConfigured(),
+    viewerId: viewer.id,
+  };
 }
 
 /** Admin monthly report; month keys are validated by the page. */

@@ -14,6 +14,8 @@ interface AuthState {
   authId: string | null;
   /** The active app user for that session, or null. */
   user: SessionUser | null;
+  /** Signed in with a temporary password an admin set; nothing else is reachable until it changes. */
+  mustChangePassword: boolean;
 }
 
 const getAuthState = cache(async (): Promise<AuthState> => {
@@ -22,18 +24,19 @@ const getAuthState = cache(async (): Promise<AuthState> => {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const authId = data?.claims?.sub ?? null;
-  if (!authId) return { authId: null, user: null };
+  if (!authId) return { authId: null, user: null, mustChangePassword: false };
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("name, email, role, title, status")
+    .select("name, email, role, title, status, must_change_password")
     .eq("id", authId)
     .maybeSingle();
-  if (!profile || profile.status !== "active") return { authId, user: null };
+  if (!profile || profile.status !== "active") return { authId, user: null, mustChangePassword: false };
 
   return {
     authId,
     user: { id: authId, name: profile.name, email: profile.email, role: profile.role, title: profile.title },
+    mustChangePassword: profile.must_change_password,
   };
 });
 
@@ -48,9 +51,20 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
  * session) and this check can never bounce the browser back and forth.
  */
 export async function requireUser(): Promise<SessionUser> {
-  const { authId, user } = await getAuthState();
+  const { authId, user, mustChangePassword } = await getAuthState();
   if (!user) redirect(authId ? "/auth/signout" : "/login");
+  if (mustChangePassword) redirect("/auth/set-password");
   return user;
+}
+
+/**
+ * For the set-password page only: the signed-in user even while a temporary
+ * password is pending, and whether it is.
+ */
+export async function requireUserForPasswordChange(): Promise<{ user: SessionUser; mustChangePassword: boolean }> {
+  const { authId, user, mustChangePassword } = await getAuthState();
+  if (!user) redirect(authId ? "/auth/signout" : "/login");
+  return { user, mustChangePassword };
 }
 
 /** The signed-in user with this role; redirects to /no-access otherwise. */

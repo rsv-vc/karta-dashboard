@@ -9,10 +9,24 @@ export type Database = {
   };
   public: {
     Tables: {
+      allowed_emails: {
+        Row: { added_at: string; added_by: string | null; email: string };
+        Insert: { added_at?: string; added_by?: string | null; email: string };
+        Update: { added_at?: string; added_by?: string | null; email?: string };
+        Relationships: [
+          {
+            foreignKeyName: "allowed_emails_added_by_fkey";
+            columns: ["added_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       app_settings: {
-        Row: { id: boolean; today: string | null };
-        Insert: { id?: boolean; today?: string | null };
-        Update: { id?: boolean; today?: string | null };
+        Row: { company_domains: string[]; id: boolean; today: string | null };
+        Insert: { company_domains?: string[]; id?: boolean; today?: string | null };
+        Update: { company_domains?: string[]; id?: boolean; today?: string | null };
         Relationships: [];
       };
       lead_activities: {
@@ -190,7 +204,9 @@ export type Database = {
         Row: {
           email: string;
           id: string;
+          is_demo: boolean;
           joined_at: string;
+          must_change_password: boolean;
           name: string;
           role: Database["public"]["Enums"]["app_role"];
           status: Database["public"]["Enums"]["user_status"];
@@ -199,7 +215,9 @@ export type Database = {
         Insert: {
           email: string;
           id: string;
+          is_demo?: boolean;
           joined_at?: string;
+          must_change_password?: boolean;
           name: string;
           role?: Database["public"]["Enums"]["app_role"];
           status?: Database["public"]["Enums"]["user_status"];
@@ -208,7 +226,9 @@ export type Database = {
         Update: {
           email?: string;
           id?: string;
+          is_demo?: boolean;
           joined_at?: string;
+          must_change_password?: boolean;
           name?: string;
           role?: Database["public"]["Enums"]["app_role"];
           status?: Database["public"]["Enums"]["user_status"];
@@ -219,6 +239,14 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      admin_update_member: {
+        Args: {
+          p_id: string;
+          p_role: Database["public"]["Enums"]["app_role"];
+          p_status: Database["public"]["Enums"]["user_status"];
+        };
+        Returns: undefined;
+      };
       change_lead_stage: {
         Args: {
           p_final_deal_value?: number;

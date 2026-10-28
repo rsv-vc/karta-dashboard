@@ -15,5 +15,13 @@ export interface User {
   joinedAt: string;
 }
 
+/** A team member as the database stores them (profiles). */
+export interface Member extends User {
+  /** An admin set a temporary password that has not been changed yet. */
+  mustChangePassword: boolean;
+  /** Seeded demo account (exempt from the company-email rule). */
+  isDemo: boolean;
+}
+
 /** The narrow user shape resolved from a session and safe to hand to Client Components. */
 export type SessionUser = Pick<User, "id" | "name" | "email" | "role" | "title">;

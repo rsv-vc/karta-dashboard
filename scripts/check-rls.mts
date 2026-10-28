@@ -128,7 +128,34 @@ check("…and Priya can no longer read it", !gone.error && gone.data!.length ===
 const removed = await admin.from("leads").delete().eq("id", tempId).select("id");
 check("Admin deletes the temporary lead", !removed.error && removed.data!.length === 1);
 
-await Promise.all([priya.auth.signOut(), admin.auth.signOut()]);
+// Team management ------------------------------------------------------------------
+const KARAN = U.karan;
+const agentCall = await priya.rpc("admin_update_member", { p_id: ROHAN, p_role: "sales_agent", p_status: "inactive" });
+check("an agent cannot call admin_update_member", Boolean(agentCall.error), agentCall.error?.message);
+const selfDemote = await admin.rpc("admin_update_member", { p_id: U.admin, p_role: "sales_agent", p_status: "active" });
+check("an admin cannot demote themselves", /own admin access/.test(selfDemote.error?.message ?? ""), selfDemote.error?.message);
+const selfOff = await admin.rpc("admin_update_member", { p_id: U.admin, p_role: "admin", p_status: "inactive" });
+check("an admin cannot deactivate themselves", /own admin access/.test(selfOff.error?.message ?? ""), selfOff.error?.message);
+const busy = await admin.rpc("admin_update_member", { p_id: KARAN, p_role: "sales_agent", p_status: "inactive" });
+check("deactivating an agent who owns active leads is refused", /active leads/.test(busy.error?.message ?? ""), busy.error?.message);
+const promote = await admin.rpc("admin_update_member", { p_id: KARAN, p_role: "admin", p_status: "active" });
+check("…and so is making them an employee", /active leads/.test(promote.error?.message ?? ""), promote.error?.message);
+const noop = await admin.rpc("admin_update_member", { p_id: KARAN, p_role: "sales_agent", p_status: "active" });
+check("an unchanged role and status is accepted", !noop.error, noop.error?.message);
+
+const agentAllow = await priya.from("allowed_emails").insert({ email: "rls-check@example.com" });
+check("an agent cannot add allowed emails", Boolean(agentAllow.error));
+const agentList = await priya.from("allowed_emails").select("email");
+check("…nor read the list", !agentList.error && agentList.data!.length === 0);
+const flag = await priya.from("profiles").update({ must_change_password: false }).eq("id", PRIYA);
+check("people cannot clear their own must_change_password flag", Boolean(flag.error), flag.error?.message);
+const promoteSelf = await priya.from("profiles").update({ role: "admin" }).eq("id", PRIYA);
+check("…nor change their own role", Boolean(promoteSelf.error));
+const target = await priya.from("monthly_targets").upsert({ user_id: PRIYA, month: "2026-12-01", won_value: 1, new_leads: 1 });
+check("an agent cannot set targets", Boolean(target.error));
+
+// Local sign-out: a global one would end these demo accounts' sessions everywhere.
+await Promise.all([priya.auth.signOut({ scope: "local" }), admin.auth.signOut({ scope: "local" })]);
 if (failures > 0) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);
