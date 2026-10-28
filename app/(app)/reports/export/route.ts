@@ -15,8 +15,10 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const months = reportMonths(TODAY);
   const month = params.get("month") ?? months[0];
-  const compare = params.get("compare") ?? previousMonth(month);
-  if (!isMonthKey(month) || !months.includes(month) || !isMonthKey(compare)) {
+  // "none" turns the comparison off; absent means the previous month.
+  const rawCompare = params.get("compare") ?? previousMonth(month);
+  const compare = rawCompare === "none" ? null : rawCompare;
+  if (!isMonthKey(month) || !months.includes(month) || (compare !== null && !isMonthKey(compare))) {
     return new Response("Invalid month", { status: 400 });
   }
 

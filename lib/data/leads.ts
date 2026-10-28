@@ -10,6 +10,7 @@ import { canEditLead, isAdmin, partitionLeadsForUser, toVisibleLead, type Visibl
 import { STALE_AFTER_DAYS, computeAgentDashboard, type AgentDashboard } from "@/lib/dashboard/agent-metrics";
 import { buildFollowUpBoard, type FollowUpBoard } from "@/lib/dashboard/follow-ups";
 import { computeTeamDashboard, type TeamDashboard, type TeamPeriod } from "@/lib/dashboard/team-metrics";
+import { buildMonthlyReport, type MonthlyReport } from "@/lib/reports/monthly";
 import { toDirectoryRow, toLeadRow, type DirectoryRow, type LeadRow } from "@/lib/leads/rows";
 import { getFollowUpsDue, toDirectoryEntry } from "@/lib/selectors";
 import type { Lead, LeadDirectoryEntry, LeadStage } from "@/types/lead";
@@ -157,4 +158,10 @@ export async function getTeamPageData(): Promise<{ members: TeamMember[]; leads:
     }))
     .sort((a, b) => a.companyName.localeCompare(b.companyName));
   return { members, leads: reassignable };
+}
+
+/** Admin monthly report; month keys are validated by the page. */
+export async function getMonthlyReport(month: string, compareTo: string | null): Promise<MonthlyReport> {
+  await requireRole("admin");
+  return buildMonthlyReport(listLeads(), { month, compareTo, agents: mockUsers });
 }

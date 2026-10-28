@@ -133,3 +133,41 @@
     @apply font-sans;
   }
 }
+/* Print: paper gets the content only, always light, with cards kept whole. */
+@media print {
+  [data-slot="sidebar"],
+  [data-sonner-toaster],
+  nextjs-portal {
+    display: none !important;
+  }
+
+  .dark,
+  :root {
+    color-scheme: light;
+    --background: #ffffff;
+    --foreground: #09090b;
+    --card: #ffffff;
+    --card-foreground: #09090b;
+    --muted: #f4f4f5;
+    --muted-foreground: #52525b;
+    --border: #e4e4e7;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  [data-slot="card"] {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+
+  /* Wide tables should print in full rather than clip inside a scroll box. */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+}

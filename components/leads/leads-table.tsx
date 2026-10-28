@@ -1,7 +1,7 @@
 "use client";
 
 import { useTable, type ColumnVisibilityState, type SortingState, type Updater } from "@tanstack/react-table";
-import { PlusIcon, SearchXIcon, UsersIcon, XIcon } from "lucide-react";
+import { DownloadIcon, PlusIcon, SearchXIcon, UsersIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { DataTable } from "@/components/data-table/data-table";
@@ -21,6 +21,7 @@ import {
   facetCounts,
   filterLeadRows,
   hasActiveFilters,
+  serializeLeadFilters,
   type FollowUpBucket,
 } from "@/lib/leads/filters";
 import type { LeadRow } from "@/lib/leads/rows";
@@ -160,6 +161,13 @@ export function LeadsTable({
         <div className="ml-auto flex items-center gap-2">
           <StatusFilter value={filters.status} onChange={(status) => setFilters({ ...filters, status })} />
           <DataTableViewOptions table={table} />
+          {/* Same filters as the table; the server exports only leads you can see in full. */}
+          <Button asChild variant="outline" size="sm" className="h-8">
+            <a href={`/leads/export?${serializeLeadFilters(filters).toString()}`} download>
+              <DownloadIcon />
+              Export CSV
+            </a>
+          </Button>
         </div>
       </div>
 
