@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { StageBadge } from "@/components/shared/stage-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -235,6 +236,8 @@ function DirectorySample() {
 }
 
 export default function DevDataPage() {
+  // Developer tool only: it lists every lead in full, so production builds hide it.
+  if (process.env.NODE_ENV === "production") notFound();
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 sm:p-8">
       <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
