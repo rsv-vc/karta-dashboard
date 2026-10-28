@@ -31,7 +31,19 @@ const TYPE_LABELS: Record<LogActivityValues["type"], string> = {
 const EMPTY: LogActivityValues = { type: "call", description: "", date: TODAY, nextFollowUpDate: "" };
 
 /** Record a call, email, meeting or note, optionally scheduling the next follow-up. */
-export function LogActivityDialog({ leadId, createdDay }: { leadId: string; createdDay: string }) {
+export function LogActivityDialog({
+  leadId,
+  createdDay,
+  compact = false,
+  companyName,
+}: {
+  leadId: string;
+  createdDay: string;
+  /** Small "Log" button for list rows instead of the full-size page action. */
+  compact?: boolean;
+  /** Shown in the dialog title when opened from a list. */
+  companyName?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<LogActivityValues>(EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -62,14 +74,21 @@ export function LogActivityDialog({ leadId, createdDay }: { leadId: string; crea
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <PlusIcon />
-          Log activity
-        </Button>
+        {compact ? (
+          <Button variant="outline" size="sm" aria-label={companyName ? `Log activity for ${companyName}` : "Log activity"}>
+            <PlusIcon />
+            Log
+          </Button>
+        ) : (
+          <Button variant="outline">
+            <PlusIcon />
+            Log activity
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Log activity</DialogTitle>
+          <DialogTitle>{companyName ? `Log activity · ${companyName}` : "Log activity"}</DialogTitle>
           <DialogDescription>Calls, emails and meetings also update the last-contact date.</DialogDescription>
         </DialogHeader>
         <FieldGroup>

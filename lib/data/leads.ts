@@ -1,10 +1,13 @@
 import "server-only";
 import { redirect } from "next/navigation";
+import { getTargetFor } from "@/data/mock-targets";
 import { getAgents } from "@/data/mock-users";
 import { requireUser } from "@/lib/auth/dal";
 import { findLead, listLeads } from "@/lib/data/store";
 import { TODAY } from "@/lib/constants";
 import { canEditLead, isAdmin, partitionLeadsForUser, toVisibleLead, type VisibleLead } from "@/lib/auth/permissions";
+import { computeAgentDashboard, type AgentDashboard } from "@/lib/dashboard/agent-metrics";
+import { buildFollowUpBoard, type FollowUpBoard } from "@/lib/dashboard/follow-ups";
 import { toDirectoryRow, toLeadRow, type DirectoryRow, type LeadRow } from "@/lib/leads/rows";
 import { getFollowUpsDue, toDirectoryEntry } from "@/lib/selectors";
 import type { Lead, LeadDirectoryEntry } from "@/types/lead";
@@ -79,4 +82,20 @@ export async function getLeadForEdit(id: string): Promise<Lead | null> {
   if (!lead) return null;
   if (!canEditLead(user, lead)) redirect("/no-access");
   return lead;
+}
+
+/** The signed-in agent's dashboard, computed from their own leads. */
+export async function getAgentDashboard(): Promise<AgentDashboard> {
+  const user = await requireUser();
+  const own = listLeads().filter((l) => l.ownerId === user.id);
+  return computeAgentDashboard(own, { today: TODAY, target: getTargetFor(user.id) });
+}
+
+/** Follow-up queue: an agent's own leads; for admins every lead, optionally one owner's. */
+export async function getFollowUpBoard(ownerId?: string): Promise<FollowUpBoard> {
+  const user = await requireUser();
+  const leads = listLeads().filter((l) =>
+    isAdmin(user) ? !ownerId || l.ownerId === ownerId : l.ownerId === user.id,
+  );
+  return buildFollowUpBoard(leads, TODAY);
 }

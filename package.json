@@ -10,7 +10,8 @@
     "check:data": "tsx scripts/check-data.ts",
     "check:permissions": "tsx scripts/check-permissions.ts",
     "check:leads": "tsx scripts/check-leads.ts",
-    "check:mutations": "tsx scripts/check-mutations.ts"
+    "check:mutations": "tsx scripts/check-mutations.ts",
+    "check:dashboard": "tsx scripts/check-dashboard.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",
