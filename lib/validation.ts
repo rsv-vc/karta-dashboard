@@ -20,8 +20,17 @@ export interface ValidationResult {
 const EXPECTED_LEAD_COUNT = 75;
 const MIN_STAGE_GAP_DAYS = 3;
 
+export interface ValidationOptions {
+  /**
+   * Also apply rules that only describe the generated seed data (exactly 75
+   * leads, at least 3 days per stage, 2-8 activities). Real edits break these
+   * legitimately, so they are off by default.
+   */
+  seedRules?: boolean;
+}
+
 /** Returns a message for every broken stageHistory rule. */
-function checkStageHistory(lead: Lead): string[] {
+function checkStageHistory(lead: Lead, seedRules: boolean): string[] {
   const problems: string[] = [];
   const history = lead.stageHistory;
   if (history.length === 0) return ["stageHistory is empty"];
@@ -47,14 +56,15 @@ function checkStageHistory(lead: Lead): string[] {
     const legal = next.stage === expectedNext || (next.stage === "lost" && isActiveStage(entry.stage));
     if (!legal) problems.push(`illegal move ${entry.stage} -> ${next.stage}`);
 
-    if (daysBetween(entry.startDate, next.startDate) < MIN_STAGE_GAP_DAYS) {
+    if (next.startDate <= entry.startDate) problems.push(`${next.stage} does not start after ${entry.stage}`);
+    if (seedRules && daysBetween(entry.startDate, next.startDate) < MIN_STAGE_GAP_DAYS) {
       problems.push(`${entry.stage} lasted under ${MIN_STAGE_GAP_DAYS} days`);
     }
   }
   return problems;
 }
 
-function checkDates(lead: Lead): string[] {
+function checkDates(lead: Lead, seedRules: boolean): string[] {
   const problems: string[] = [];
   const active = isActiveStage(lead.stage);
   const finalStart = lead.stageHistory[lead.stageHistory.length - 1]?.startDate;
@@ -74,7 +84,7 @@ function checkDates(lead: Lead): string[] {
   if (stageChanges !== lead.stageHistory.length - 1) {
     problems.push(`${stageChanges} stage_change activities for ${lead.stageHistory.length - 1} transitions`);
   }
-  if (lead.activities.length < 2 || lead.activities.length > 8) {
+  if (seedRules && (lead.activities.length < 2 || lead.activities.length > 8)) {
     problems.push(`${lead.activities.length} activities (expected 2-8)`);
   }
   return problems;
@@ -87,18 +97,18 @@ function checkOwner(lead: Lead): string[] {
   return [];
 }
 
-export function validateLeads(leads: Lead[]): ValidationResult {
+export function validateLeads(leads: Lead[], { seedRules = false }: ValidationOptions = {}): ValidationResult {
   const errors: ValidationError[] = [];
   const dataset = (message: string) => errors.push({ leadId: "-", companyName: "(dataset)", message });
 
-  if (leads.length !== EXPECTED_LEAD_COUNT) dataset(`expected ${EXPECTED_LEAD_COUNT} leads, found ${leads.length}`);
+  if (seedRules && leads.length !== EXPECTED_LEAD_COUNT) dataset(`expected ${EXPECTED_LEAD_COUNT} leads, found ${leads.length}`);
 
   const seen = new Set<string>();
   for (const lead of leads) {
     if (seen.has(lead.id)) dataset(`duplicate id ${lead.id}`);
     seen.add(lead.id);
 
-    for (const message of [...checkStageHistory(lead), ...checkDates(lead), ...checkOwner(lead)]) {
+    for (const message of [...checkStageHistory(lead, seedRules), ...checkDates(lead, seedRules), ...checkOwner(lead)]) {
       errors.push({ leadId: lead.id, companyName: lead.companyName, message });
     }
   }

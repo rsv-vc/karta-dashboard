@@ -35,6 +35,14 @@ export function formatDate(iso: string): string {
   return format(parseISO(toDateKey(iso)), "d MMM yyyy");
 }
 
+/** "2026-10-28T14:05:00+05:30" -> "28 Oct 2026, 2:05 pm" (IST wall-clock time from the string). */
+export function formatDateTime(iso: string): string {
+  const [h, m] = iso.slice(11, 16).split(":").map(Number);
+  const suffix = h >= 12 ? "pm" : "am";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${formatDate(iso)}, ${hour12}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
 /** "2026-10" -> "Oct 2026" */
 export function formatMonth(monthKey: string): string {
   return format(parseISO(`${monthKey}-01`), "MMM yyyy");

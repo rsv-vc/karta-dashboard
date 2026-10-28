@@ -169,6 +169,11 @@ export function getBreadcrumbs(pathname: string, role: Role): Breadcrumb[] {
     .sort((a, b) => a.href.length - b.href.length)
     .map((item) => ({ label: getNavLabel(item, role), href: item.href }));
   const deepest = crumbs[crumbs.length - 1];
-  if (deepest && deepest.href !== pathname) crumbs.push({ label: "Details", href: pathname });
+  if (deepest && deepest.href !== pathname) {
+    const editing = pathname.endsWith("/edit");
+    const recordPath = editing ? pathname.slice(0, -"/edit".length) : pathname;
+    crumbs.push({ label: "Details", href: recordPath });
+    if (editing) crumbs.push({ label: "Edit", href: pathname });
+  }
   return crumbs;
 }

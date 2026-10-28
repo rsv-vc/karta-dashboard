@@ -160,9 +160,22 @@ export function normalizeCompanyName(name: string): string {
     .join(" ");
 }
 
-/** Leads whose normalized company name matches. Pass excludeId when checking an existing lead. */
+/** Shortest normalized name allowed to match by word-prefix, so "abc" does not flag "abc anything". */
+const MIN_PREFIX_MATCH_LENGTH = 6;
+
+/**
+ * Same company after normalizing, or one name is the other plus extra trailing
+ * words ("Zenith Retail" vs "Zenith Retail Solutions").
+ */
+function namesOverlap(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
+  return shorter.length >= MIN_PREFIX_MATCH_LENGTH && longer.startsWith(`${shorter} `);
+}
+
+/** Leads whose company name looks like the same company. Pass excludeId when checking an existing lead. */
 export function findPossibleDuplicates(companyName: string, excludeId?: string, leads: Lead[] = mockLeads): Lead[] {
   const target = normalizeCompanyName(companyName);
   if (!target) return [];
-  return leads.filter((l) => l.id !== excludeId && normalizeCompanyName(l.companyName) === target);
+  return leads.filter((l) => l.id !== excludeId && namesOverlap(normalizeCompanyName(l.companyName), target));
 }

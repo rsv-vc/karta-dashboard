@@ -9,7 +9,7 @@ import {
   type LeadFilters,
 } from "@/lib/leads/filters";
 import { toDirectoryRow, toLeadRow } from "@/lib/leads/rows";
-import { getFollowUpsDue, getStageCounts, toDirectoryEntry } from "@/lib/selectors";
+import { findPossibleDuplicates, getFollowUpsDue, getStageCounts, toDirectoryEntry } from "@/lib/selectors";
 
 let failures = 0;
 function check(label: string, ok: boolean) {
@@ -50,6 +50,14 @@ const allStages = Object.entries(counts).every(([stage, n]) => (stageFacet[stage
 check("stage facet equals getStageCounts", allStages);
 const priyaStageTotal = Object.values(facetCounts(rows, withFilters({ owners: ["u_priya"] }), "stages")).reduce((a, b) => a + b, 0);
 check("stage facet respects the owner filter", priyaStageTotal === rows.filter((r) => r.ownerId === "u_priya").length);
+
+// Duplicate detection: exact after normalizing, or one name plus extra words.
+check("duplicates: 'Zenith Retail Solutions' finds both Zenith leads", findPossibleDuplicates("Zenith Retail Solutions").length === 2);
+check(
+  "duplicates: no seed lead matches another except the Zenith pair",
+  mockLeads.filter((l) => findPossibleDuplicates(l.companyName, l.id).length > 0).length === 2,
+);
+check("duplicates: short prefixes do not match", findPossibleDuplicates("Zen").length === 0);
 
 // DTO shape: nothing sensitive leaks into list rows.
 const leadRowKeys = Object.keys(rows[0]);

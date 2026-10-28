@@ -38,7 +38,7 @@ function Section({ title, description, children }: { title: string; description?
 }
 
 function ValidationSection() {
-  const { valid, errors } = validateLeads(mockLeads);
+  const { valid, errors } = validateLeads(mockLeads, { seedRules: true });
   if (valid) {
     return (
       <p className="rounded-lg border border-green-300 bg-green-50 p-3 font-medium text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300">

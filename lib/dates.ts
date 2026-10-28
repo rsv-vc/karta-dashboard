@@ -31,6 +31,22 @@ export function toIstIso(dateKey: string, hour: number, minute: number): string 
   return `${dateKey}T${hh}:${mm}:00+05:30`;
 }
 
+/**
+ * "Now" in the mock world: TODAY's date with the real current IST time of day.
+ * The calendar is frozen at TODAY so seed data stays meaningful.
+ */
+export function nowIso(today: string, realNow: number = Date.now()): string {
+  const ist = new Date(realNow + 330 * 60_000);
+  return toIstIso(today, ist.getUTCHours(), ist.getUTCMinutes());
+}
+
+/** `iso` if it is after `minIso`, otherwise one minute after `minIso` (same IST format). */
+export function laterThan(iso: string, minIso: string): string {
+  if (iso > minIso) return iso;
+  const next = new Date(Date.parse(minIso) + 60_000 + 330 * 60_000);
+  return toIstIso(next.toISOString().slice(0, 10), next.getUTCHours(), next.getUTCMinutes());
+}
+
 /** "YYYY-MM" key for a year and 1-12 month. */
 export function toMonthKey(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}`;

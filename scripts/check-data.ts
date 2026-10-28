@@ -3,7 +3,7 @@ import { mockLeads } from "@/data/mock-leads";
 import { getFollowUpsDue, findPossibleDuplicates, getMonthlySummary, getStageCounts } from "@/lib/selectors";
 import { validateLeads } from "@/lib/validation";
 
-const result = validateLeads(mockLeads);
+const result = validateLeads(mockLeads, { seedRules: true });
 console.log(result.valid ? `OK: all ${mockLeads.length} leads valid` : result.errors);
 console.log("stages", getStageCounts(mockLeads));
 

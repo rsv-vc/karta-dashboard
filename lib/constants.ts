@@ -80,6 +80,17 @@ export const STAGE_BY_VALUE = Object.fromEntries(STAGES.map((s) => [s.value, s])
   StageConfig
 >;
 
+/** Every stage value, for zod enums and parsing. */
+export const STAGE_VALUES = [
+  "new",
+  "contacted",
+  "qualified",
+  "proposal",
+  "negotiation",
+  "won",
+  "lost",
+] as const satisfies readonly LeadStage[];
+
 /** The forward path a lead moves along. "lost" is a terminal exit, not a step. */
 export const PIPELINE_ORDER: readonly LeadStage[] = [
   "new",

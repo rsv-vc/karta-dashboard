@@ -1,28 +1,38 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
-import { LockIcon } from "lucide-react";
+import { LockIcon, PencilIcon } from "lucide-react";
 import { UserAvatar } from "@/components/auth/user-avatar";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
-import { FollowUpLabel } from "@/components/leads/follow-up-label";
+import { ActivityTimeline } from "@/components/leads/activity-timeline";
+import { ChangeStageDialog } from "@/components/leads/change-stage-dialog";
+import { DeleteLeadButton } from "@/components/leads/delete-lead-button";
+import { FollowUpEditor } from "@/components/leads/follow-up-editor";
+import { LogActivityDialog } from "@/components/leads/log-activity-dialog";
 import { PriorityBadge } from "@/components/leads/priority-badge";
-import { ComingSoon } from "@/components/shared/coming-soon";
+import { StageHistory } from "@/components/leads/stage-history";
+import { StageStepper } from "@/components/leads/stage-stepper";
 import { PageSkeleton } from "@/components/shared/page-skeleton";
 import { StageBadge } from "@/components/shared/stage-badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getUserById } from "@/data/mock-users";
-import { COMPANY_SIZE_LABELS, SOURCE_LABELS } from "@/lib/constants";
+import { requireUser } from "@/lib/auth/dal";
+import { canDeleteLead } from "@/lib/auth/permissions";
+import { COMPANY_SIZE_LABELS, SOURCE_LABELS, isActiveStage } from "@/lib/constants";
 import { getLeadForViewer } from "@/lib/data/leads";
+import { toDateKey } from "@/lib/dates";
+import { allowedNextStages } from "@/lib/leads/mutations";
 import { formatDate, formatINR } from "@/lib/utils";
 import type { Lead, LeadDirectoryEntry } from "@/types/lead";
 
 export const metadata: Metadata = { title: "Lead · Karta Lead Tracker" };
 
-// Read-only lead view. Permission is decided per lead on the server: owners and
-// admins get the full record, other agents only the masked directory entry.
-// Phase 5 adds editing, the activity timeline and stage changes.
+// Lead page. Permission is decided per lead on the server: owners and admins get
+// the full record with actions, other agents only the masked directory entry.
 export default function LeadPage({ params }: PageProps<"/leads/[id]">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -33,9 +43,13 @@ export default function LeadPage({ params }: PageProps<"/leads/[id]">) {
 
 async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const visible = await getLeadForViewer(id);
+  const [user, visible] = await Promise.all([requireUser(), getLeadForViewer(id)]);
   if (!visible) notFound();
-  return visible.kind === "full" ? <FullLead lead={visible.lead} /> : <MaskedLead entry={visible.entry} />;
+  return visible.kind === "full" ? (
+    <FullLead lead={visible.lead} canDelete={canDeleteLead(user)} />
+  ) : (
+    <MaskedLead entry={visible.entry} />
+  );
 }
 
 function ownerName(id: string): string {
@@ -68,8 +82,11 @@ function MaskedLead({ entry }: { entry: LeadDirectoryEntry }) {
   );
 }
 
-function FullLead({ lead }: { lead: Lead }) {
+function FullLead({ lead, canDelete }: { lead: Lead; canDelete: boolean }) {
   const owner = ownerName(lead.ownerId);
+  const allowed = allowedNextStages(lead.stage);
+  const active = isActiveStage(lead.stage);
+
   return (
     <PageContainer>
       <PageHeader
@@ -82,56 +99,115 @@ function FullLead({ lead }: { lead: Lead }) {
           </>
         }
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-            <Detail label="POC">
-              {lead.pocName}
-              <span className="block text-xs text-muted-foreground">{lead.pocDesignation}</span>
-            </Detail>
-            <Detail label="Deal value">
-              <span className="tabular-nums">{formatINR(lead.dealValue)}</span>
-            </Detail>
-            <Detail label="Email">
-              <a href={`mailto:${lead.pocEmail}`} className="break-all hover:underline">
-                {lead.pocEmail}
-              </a>
-            </Detail>
-            <Detail label="Phone">
-              <a href={`tel:${lead.pocPhone.replace(/\s/g, "")}`} className="hover:underline">
-                {lead.pocPhone}
-              </a>
-            </Detail>
-            <Detail label="LinkedIn">
-              {lead.pocLinkedIn ? (
-                <a href={lead.pocLinkedIn} target="_blank" rel="noreferrer" className="break-all hover:underline">
-                  View profile
-                </a>
-              ) : (
-                <span className="text-muted-foreground">—</span>
-              )}
-            </Detail>
-            <Detail label="Owner">{owner}</Detail>
-            <Detail label="Source">{SOURCE_LABELS[lead.source]}</Detail>
-            <Detail label="Company size">{COMPANY_SIZE_LABELS[lead.companySize]}</Detail>
-            <Detail label="Created">{formatDate(lead.createdAt)}</Detail>
-            <Detail label="Last contact">{lead.lastContactedAt ? formatDate(lead.lastContactedAt) : "Never"}</Detail>
-            <Detail label="Next follow-up">
-              <FollowUpLabel date={lead.nextFollowUpAt} />
-            </Detail>
-            {lead.closedAt && <Detail label="Closed">{formatDate(lead.closedAt)}</Detail>}
-          </dl>
-        </CardContent>
-      </Card>
-      <ComingSoon
-        navKey="newLead"
-        phase={5}
-        description="Next up for this page:"
-        features={["Activity timeline", "Edit details", "Change stage", "Log a call, email or meeting"]}
-      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Keyed by stage so the dialog resets its choice after each move. */}
+        {allowed.length > 0 && (
+          <ChangeStageDialog key={lead.stage} leadId={lead.id} current={lead.stage} allowed={allowed} dealValue={lead.dealValue} />
+        )}
+        {active && <LogActivityDialog leadId={lead.id} createdDay={toDateKey(lead.createdAt)} />}
+        <Button asChild variant="outline">
+          <Link href={`/leads/${lead.id}/edit`}>
+            <PencilIcon />
+            Edit
+          </Link>
+        </Button>
+        {canDelete && <DeleteLeadButton leadId={lead.id} companyName={lead.companyName} />}
+        {!active && lead.closedAt && (
+          <span className="text-sm text-muted-foreground">Closed {formatDate(lead.closedAt)}</span>
+        )}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pipeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StageStepper history={lead.stageHistory} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActivityTimeline activities={lead.activities} />
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-6">
+          {active && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Next follow-up</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* Keyed by the stored value so it resets when another action changes it. */}
+                <FollowUpEditor key={lead.nextFollowUpAt ?? "none"} leadId={lead.id} current={lead.nextFollowUpAt} />
+              </CardContent>
+            </Card>
+          )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid gap-4">
+                <Detail label="POC">
+                  {lead.pocName}
+                  <span className="block text-xs text-muted-foreground">{lead.pocDesignation}</span>
+                </Detail>
+                <Detail label="Email">
+                  <a href={`mailto:${lead.pocEmail}`} className="break-all hover:underline">
+                    {lead.pocEmail}
+                  </a>
+                </Detail>
+                <Detail label="Phone">
+                  <a href={`tel:${lead.pocPhone.replace(/\s/g, "")}`} className="hover:underline">
+                    {lead.pocPhone}
+                  </a>
+                </Detail>
+                {lead.pocLinkedIn && (
+                  <Detail label="LinkedIn">
+                    <a href={lead.pocLinkedIn} target="_blank" rel="noreferrer" className="hover:underline">
+                      View profile
+                    </a>
+                  </Detail>
+                )}
+                <Detail label="Deal value">
+                  <span className="tabular-nums">{formatINR(lead.dealValue)}</span>
+                </Detail>
+                <Detail label="Owner">{owner}</Detail>
+                <Detail label="Source">{SOURCE_LABELS[lead.source]}</Detail>
+                <Detail label="Company size">{COMPANY_SIZE_LABELS[lead.companySize]}</Detail>
+                <Detail label="Created">{formatDate(lead.createdAt)}</Detail>
+                <Detail label="Last contact">{lead.lastContactedAt ? formatDate(lead.lastContactedAt) : "Never"}</Detail>
+              </dl>
+            </CardContent>
+          </Card>
+          {lead.notes && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Notes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm whitespace-pre-line">{lead.notes}</p>
+              </CardContent>
+            </Card>
+          )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Stage history</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StageHistory history={lead.stageHistory} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </PageContainer>
   );
 }
