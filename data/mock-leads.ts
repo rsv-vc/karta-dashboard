@@ -13,7 +13,6 @@ import {
   INDUSTRIES,
   PIPELINE_ORDER,
   STAGE_LABELS,
-  TODAY,
   isActiveStage,
   type Industry,
 } from "@/lib/constants";
@@ -23,8 +22,11 @@ import { createRng } from "@/lib/random";
 // Deterministic mock lead generator. Every random choice comes from one seeded
 // PRNG, so the 75 leads are identical on every reload and on server and client.
 
+/** The generator's own frozen "today": the demo data never shifts with the real date. */
+export const SEED_TODAY = "2026-10-28";
+
 const rng = createRng(20261028);
-const TODAY_DAY = toDayNumber(TODAY);
+const TODAY_DAY = toDayNumber(SEED_TODAY);
 const LEAD_COUNT = 75;
 
 // ---------------------------------------------------------------------------

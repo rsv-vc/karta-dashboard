@@ -1,4 +1,5 @@
 // Asserts the monthly report and CSV helpers: `npm run check:reports`
+import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
 import { mockUsers } from "@/data/mock-users";
 import { TODAY } from "@/lib/constants";

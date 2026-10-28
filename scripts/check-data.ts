@@ -1,4 +1,5 @@
 // Quick CLI sanity check of the mock data: `npx tsx scripts/check-data.ts`
+import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
 import { getFollowUpsDue, findPossibleDuplicates, getMonthlySummary, getStageCounts } from "@/lib/selectors";
 import { validateLeads } from "@/lib/validation";

@@ -1,4 +1,5 @@
 // Asserts dashboard and follow-up metrics: `npm run check:dashboard`
+import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
 import { getTargetFor } from "@/data/mock-targets";
 import { getAgents } from "@/data/mock-users";

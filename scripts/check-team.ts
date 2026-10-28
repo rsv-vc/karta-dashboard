@@ -1,4 +1,5 @@
 // Asserts admin team metrics and reassignment: `npm run check:team`
+import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
 import { getUserById, mockUsers } from "@/data/mock-users";
 import { TODAY, isActiveStage } from "@/lib/constants";

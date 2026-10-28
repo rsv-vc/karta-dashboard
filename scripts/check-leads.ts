@@ -1,4 +1,5 @@
 // Asserts list DTOs and filter logic: `npm run check:leads`
+import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
 import {
   DEFAULT_FILTERS,

@@ -13,10 +13,14 @@
     "check:mutations": "tsx scripts/check-mutations.ts",
     "check:dashboard": "tsx scripts/check-dashboard.ts",
     "check:team": "tsx scripts/check-team.ts",
-    "check:reports": "tsx scripts/check-reports.ts"
+    "check:reports": "tsx scripts/check-reports.ts",
+    "db:seed": "tsx --env-file=.env.local scripts/seed-supabase.mts",
+    "check:rls": "tsx --env-file=.env.local scripts/check-rls.mts"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
     "@tanstack/react-table": "^9.3.1",
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",
@@ -42,6 +46,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "bcryptjs": "^3.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",

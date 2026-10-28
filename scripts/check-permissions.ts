@@ -1,4 +1,5 @@
 // Asserts the permission model and session token rules: `npm run check:permissions`
+import "./_demo-today";
 import { DEMO_PASSWORD, verifyCredentials } from "@/data/mock-credentials";
 import { mockLeads } from "@/data/mock-leads";
 import { getAgents, mockUsers } from "@/data/mock-users";

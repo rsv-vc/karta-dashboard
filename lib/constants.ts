@@ -1,11 +1,18 @@
 import type { CompanySize, LeadPriority, LeadSource, LeadStage } from "@/types/lead";
 
+/** Real calendar date in India ("YYYY-MM-DD"). */
+function istToday(): string {
+  return new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+}
+
 /**
- * The app's fixed "today". All overdue / due-today / upcoming logic and the mock
- * generator use this instead of `new Date()`, so the data is deterministic and
- * server and client renders always agree.
+ * The app's "today". NEXT_PUBLIC_APP_TODAY freezes it (the demo uses
+ * 2026-10-28 so the seeded data stays meaningful); otherwise it is the real IST
+ * date. All overdue / due-today / upcoming logic uses this, never `new Date()`.
  */
-export const TODAY = "2026-10-28";
+export const TODAY = /^\d{4}-\d{2}-\d{2}$/.test(process.env.NEXT_PUBLIC_APP_TODAY ?? "")
+  ? (process.env.NEXT_PUBLIC_APP_TODAY as string)
+  : istToday();
 
 /** TODAY as a local-midnight Date, for date-fns helpers. */
 export function getToday(): Date {

@@ -1,4 +1,5 @@
 // Asserts the pure lead mutation rules: `npm run check:mutations`
+import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
 import { getUserById } from "@/data/mock-users";
 import { TODAY } from "@/lib/constants";

@@ -8,7 +8,7 @@ export interface MonthlyTarget {
   newLeads: number;
 }
 
-const TARGETS: Record<string, MonthlyTarget> = {
+export const MONTHLY_TARGETS: Record<string, MonthlyTarget> = {
   u_priya: { wonValue: 4_000_000, newLeads: 8 },
   u_rohan: { wonValue: 2_500_000, newLeads: 6 },
   u_ananya: { wonValue: 2_500_000, newLeads: 6 },
@@ -18,5 +18,5 @@ const TARGETS: Record<string, MonthlyTarget> = {
 const DEFAULT_TARGET: MonthlyTarget = { wonValue: 2_000_000, newLeads: 5 };
 
 export function getTargetFor(userId: string): MonthlyTarget {
-  return TARGETS[userId] ?? DEFAULT_TARGET;
+  return MONTHLY_TARGETS[userId] ?? DEFAULT_TARGET;
 }
