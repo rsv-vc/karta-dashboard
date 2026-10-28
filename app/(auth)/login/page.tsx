@@ -38,7 +38,9 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
       <Card className="w-full max-w-md">
         <CardHeader>
           <LogoMark className="mb-3 h-10 text-logo" />
-          <CardTitle className="text-xl">Karta Lead Tracker</CardTitle>
+          <CardTitle className="text-xl">
+            <h1>Karta Lead Tracker</h1>
+          </CardTitle>
           <CardDescription>Sign in to manage your leads.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">

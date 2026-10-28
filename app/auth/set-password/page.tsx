@@ -29,7 +29,9 @@ async function SetPasswordContent() {
     <>
       <CardHeader>
         <LogoMark className="mb-3 h-10 text-logo" />
-        <CardTitle className="text-xl">{mustChangePassword ? `Welcome, ${user.name}` : "Set a new password"}</CardTitle>
+        <CardTitle className="text-xl">
+          <h1>{mustChangePassword ? `Welcome, ${user.name}` : "Set a new password"}</h1>
+        </CardTitle>
         <CardDescription>
           {mustChangePassword
             ? "You signed in with a temporary password. Choose your own to continue."
