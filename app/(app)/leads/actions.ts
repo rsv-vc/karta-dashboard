@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { z } from "zod";
+import { z } from "zod";
 import { getUserById } from "@/data/mock-users";
 import { requireUser } from "@/lib/auth/dal";
 import {
@@ -21,6 +21,7 @@ import {
   applyLeadEdits,
   applyStageChange,
   buildNewLead,
+  reassignLead,
 } from "@/lib/leads/mutations";
 import {
   changeStageSchema,
@@ -178,4 +179,33 @@ export async function deleteLead(id: string): Promise<ActionResult> {
   removeLead(id);
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+const reassignSchema = z.object({
+  leadIds: z.array(z.string().min(1)).min(1, "Pick at least one lead").max(50, "Move at most 50 leads at a time"),
+  toOwnerId: z.string().min(1, "Pick the agent to move them to"),
+});
+
+export type ReassignResult = { ok: true; moved: number; skipped: number } | { ok: false; error: string };
+
+/** Admin bulk rebalance: move leads to another active agent, noting each move on the lead. */
+export async function reassignLeads(raw: unknown): Promise<ReassignResult> {
+  const user = await requireUser();
+  if (!canReassignLead(user)) return { ok: false, error: "Only admins can reassign leads" };
+  const parsed = reassignSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const { leadIds, toOwnerId } = parsed.data;
+  if (!isAssignableOwner(toOwnerId)) return { ok: false, error: "Pick an active sales agent" };
+
+  const leads = leadIds.map((id) => findLead(id));
+  if (leads.some((l) => !l)) return { ok: false, error: "Some of these leads no longer exist" };
+
+  let moved = 0;
+  for (const lead of leads as Lead[]) {
+    if (lead.ownerId === toOwnerId) continue;
+    replaceLead(reassignLead(lead, toOwnerId, { byUserId: user.id, ownerName }));
+    moved++;
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, moved, skipped: leads.length - moved };
 }

@@ -1,16 +1,18 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { getTargetFor } from "@/data/mock-targets";
-import { getAgents } from "@/data/mock-users";
-import { requireUser } from "@/lib/auth/dal";
+import { getAgents, mockUsers } from "@/data/mock-users";
+import { requireRole, requireUser } from "@/lib/auth/dal";
 import { findLead, listLeads } from "@/lib/data/store";
-import { TODAY } from "@/lib/constants";
+import { TODAY, isActiveStage } from "@/lib/constants";
+import { daysBetween } from "@/lib/dates";
 import { canEditLead, isAdmin, partitionLeadsForUser, toVisibleLead, type VisibleLead } from "@/lib/auth/permissions";
-import { computeAgentDashboard, type AgentDashboard } from "@/lib/dashboard/agent-metrics";
+import { STALE_AFTER_DAYS, computeAgentDashboard, type AgentDashboard } from "@/lib/dashboard/agent-metrics";
 import { buildFollowUpBoard, type FollowUpBoard } from "@/lib/dashboard/follow-ups";
+import { computeTeamDashboard, type TeamDashboard, type TeamPeriod } from "@/lib/dashboard/team-metrics";
 import { toDirectoryRow, toLeadRow, type DirectoryRow, type LeadRow } from "@/lib/leads/rows";
 import { getFollowUpsDue, toDirectoryEntry } from "@/lib/selectors";
-import type { Lead, LeadDirectoryEntry } from "@/types/lead";
+import type { Lead, LeadDirectoryEntry, LeadStage } from "@/types/lead";
 
 // Scoped lead access for pages and Server Actions. Each getter resolves the
 // current user itself, so callers cannot request another user's view by id.
@@ -98,4 +100,61 @@ export async function getFollowUpBoard(ownerId?: string): Promise<FollowUpBoard>
     isAdmin(user) ? !ownerId || l.ownerId === ownerId : l.ownerId === user.id,
   );
   return buildFollowUpBoard(leads, TODAY);
+}
+
+/** Admin team overview for a period. */
+export async function getTeamDashboard(period: TeamPeriod): Promise<TeamDashboard> {
+  await requireRole("admin");
+  return computeTeamDashboard(listLeads(), { today: TODAY, period, agents: mockUsers });
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  joinedAt: string;
+  dashboard: AgentDashboard;
+  stale: number;
+}
+
+export interface ReassignableLead {
+  id: string;
+  companyName: string;
+  stage: LeadStage;
+  ownerId: string;
+  nextFollowUpAt: string | null;
+  stale: boolean;
+}
+
+/** Everything the /team page needs: per-agent summaries and the active leads that can be moved. */
+export async function getTeamPageData(): Promise<{ members: TeamMember[]; leads: ReassignableLead[] }> {
+  await requireRole("admin");
+  const leads = listLeads();
+  const agents = getAgents().filter((a) => a.status === "active");
+  const isStaleLead = (l: Lead) =>
+    daysBetween(l.lastContactedAt ?? l.createdAt, TODAY) >= STALE_AFTER_DAYS;
+
+  const members = agents.map((a) => {
+    const own = leads.filter((l) => l.ownerId === a.id);
+    return {
+      id: a.id,
+      name: a.name,
+      email: a.email,
+      joinedAt: a.joinedAt,
+      dashboard: computeAgentDashboard(own, { today: TODAY, target: getTargetFor(a.id) }),
+      stale: own.filter((l) => isActiveStage(l.stage) && isStaleLead(l)).length,
+    };
+  });
+  const reassignable = leads
+    .filter((l) => isActiveStage(l.stage))
+    .map((l) => ({
+      id: l.id,
+      companyName: l.companyName,
+      stage: l.stage,
+      ownerId: l.ownerId,
+      nextFollowUpAt: l.nextFollowUpAt,
+      stale: isStaleLead(l),
+    }))
+    .sort((a, b) => a.companyName.localeCompare(b.companyName));
+  return { members, leads: reassignable };
 }

@@ -51,25 +51,28 @@ export function PipelineChart({ data }: { data: PipelineDatum[] }) {
           </Bar>
         </BarChart>
       </ChartContainer>
-      <table className="sr-only">
-        <caption>Active leads by stage</caption>
-        <thead>
-          <tr>
-            <th>Stage</th>
-            <th>Leads</th>
-            <th>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((d) => (
-            <tr key={d.label}>
-              <td>{d.label}</td>
-              <td>{d.count}</td>
-              <td>{formatINRShort(d.value)}</td>
+      {/* sr-only on a wrapper: tables ignore the 1px width and would widen the page. */}
+      <div className="sr-only">
+        <table>
+          <caption>Active leads by stage</caption>
+          <thead>
+            <tr>
+              <th>Stage</th>
+              <th>Leads</th>
+              <th>Value</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((d) => (
+              <tr key={d.label}>
+                <td>{d.label}</td>
+                <td>{d.count}</td>
+                <td>{formatINRShort(d.value)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }

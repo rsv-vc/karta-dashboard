@@ -90,16 +90,23 @@ export function applyLeadEdits(
     // A closed lead has no follow-up; ignore any date sent for one.
     nextFollowUpAt: isActiveStage(lead.stage) ? followUpIso(input.nextFollowUpDate) : null,
   };
-  const newOwner = input.ownerId;
-  if (opts.canReassign && newOwner && newOwner !== lead.ownerId) {
-    next.ownerId = newOwner;
-    next.activities = addActivity(next, {
-      type: "note",
-      description: `Reassigned from ${opts.ownerName(lead.ownerId)} to ${opts.ownerName(newOwner)}`,
-      date: laterThan(opts.at ?? nowIso(TODAY), lead.createdAt),
-      byUserId: opts.byUserId,
-    });
-  }
+  return opts.canReassign && input.ownerId ? reassignLead(next, input.ownerId, opts) : next;
+}
+
+/** Moves a lead to another owner and records who did it. Same owner = no change. */
+export function reassignLead(
+  lead: Lead,
+  toOwnerId: string,
+  opts: Actor & { ownerName: (id: string) => string },
+): Lead {
+  if (toOwnerId === lead.ownerId) return lead;
+  const next: Lead = { ...lead, ownerId: toOwnerId };
+  next.activities = addActivity(next, {
+    type: "note",
+    description: `Reassigned from ${opts.ownerName(lead.ownerId)} to ${opts.ownerName(toOwnerId)}`,
+    date: laterThan(opts.at ?? nowIso(TODAY), lead.createdAt),
+    byUserId: opts.byUserId,
+  });
   return next;
 }
 
