@@ -6,7 +6,8 @@ import { requireUser } from "@/lib/auth/dal";
 import { canCreateLead, canDeleteLead, canReassignLead, canViewFullLead, isAdmin } from "@/lib/auth/permissions";
 import { TODAY } from "@/lib/constants";
 import { fetchLead, fetchTeam } from "@/lib/data/repo";
-import { followUpIso, normalizePhone } from "@/lib/leads/mutations";
+import { calculateDeal, dealInputsChanged } from "@/lib/deal-calculator";
+import { dealInputsOf, followUpIso, normalizePhone } from "@/lib/leads/mutations";
 import {
   changeStageSchema,
   createLeadSchema,
@@ -73,8 +74,9 @@ async function duplicatesFor(companyName: string, viewer: SessionUser, excludeId
   }));
 }
 
-/** Lead detail columns shared by create and edit, normalized. */
+/** Lead detail columns shared by create and edit, normalized; volume and deal value calculated. */
 function detailColumns(input: LeadFormValues) {
+  const deal = calculateDeal(dealInputsOf(input));
   return {
     company_name: input.companyName.trim(),
     poc_name: input.pocName.trim(),
@@ -87,8 +89,12 @@ function detailColumns(input: LeadFormValues) {
     city: input.city.trim() || null,
     source: input.source,
     priority: input.priority,
-    deal_value: input.dealValue,
-    volume: input.volume,
+    calls_per_month: input.callsPerMonth,
+    minutes_per_call: input.minutesPerCall,
+    price_per_minute: input.pricePerMinute,
+    contract_months: input.contractMonths,
+    volume: deal.volume,
+    deal_value: deal.dealValue,
     responsiveness: input.responsiveness,
     decision_access: input.decisionAccess,
     timing_budget: input.timingBudget,
@@ -154,10 +160,16 @@ export async function updateLead(id: string, raw: unknown): Promise<ActionResult
 
   const supabase = await createClient();
   const closed = lead.stage === "won" || lead.stage === "lost";
+  const columns = detailColumns(input);
+  // Keep stored totals (e.g. a final value recorded when won) unless a calculator input changed.
+  if (!dealInputsChanged(dealInputsOf({ ...lead, industry: lead.industry as LeadFormValues["industry"] }), dealInputsOf(input))) {
+    columns.volume = lead.volume;
+    columns.deal_value = lead.dealValue;
+  }
   const { data, error } = await supabase
     .from("leads")
     .update({
-      ...detailColumns(input),
+      ...columns,
       // A closed lead has no follow-up; ignore any date sent for one.
       next_follow_up_at: closed ? null : followUpIso(input.nextFollowUpDate),
     })

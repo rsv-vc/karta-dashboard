@@ -79,13 +79,13 @@ export function getLeadColumns(showOwner: boolean) {
     // Unknown volumes sort last.
     helper.accessor((r) => r.volume ?? undefined, {
       id: "volume",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Volume" className="ml-auto" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Volume (min/mo)" className="ml-auto" />,
       cell: ({ row }) => (
         <span className="tabular-nums">{row.original.volume !== null ? formatNumber(row.original.volume) : "—"}</span>
       ),
       sortFn: "basic",
       sortUndefined: "last",
-      meta: { label: "Volume", className: "text-right" },
+      meta: { label: "Volume (min/mo)", className: "text-right" },
     }),
     helper.accessor("dealValue", {
       id: "dealValue",

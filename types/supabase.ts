@@ -45,10 +45,12 @@ type Enums = {
 };
 
 type LeadRow = {
+  calls_per_month: number | null;
   city: string | null;
   closed_at: string | null;
   company_name: string;
   company_size: Enums["company_size"] | null;
+  contract_months: number | null;
   created_at: string;
   currency: string;
   deal_value: number;
@@ -58,6 +60,7 @@ type LeadRow = {
   id: string;
   industry: string;
   last_contacted_at: string | null;
+  minutes_per_call: number | null;
   next_follow_up_at: string | null;
   next_step: string;
   notes: string;
@@ -67,6 +70,7 @@ type LeadRow = {
   poc_linkedin: string | null;
   poc_name: string;
   poc_phone: string | null;
+  price_per_minute: number | null;
   priority: Enums["lead_priority"];
   responsiveness: number;
   source: Enums["lead_source"];

@@ -23,6 +23,7 @@ check(
   o.bands.every((b) => Object.values(b.bySource).reduce((n, v) => n + v, 0) === b.total),
 );
 check("source totals add up to tracked", Object.values(o.bandTotalsBySource).reduce((n, v) => n + v, 0) === o.tracked);
+check("open deal value sums open accounts", o.openDealValue === mockLeads.filter((l) => !["won", "lost"].includes(l.stage)).reduce((n, l) => n + l.dealValue, 0));
 check("hot + warm tile = hot + warm bands", o.hotWarm === o.bands.filter((b) => b.band === "hot" || b.band === "warm").reduce((n, b) => n + b.total, 0));
 check("stages add up to tracked", o.stages.reduce((n, s) => n + s.count, 0) === o.tracked);
 check("segments add up to tracked", o.segments.reduce((n, s) => n + s.count, 0) === o.tracked);

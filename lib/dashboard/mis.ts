@@ -69,6 +69,9 @@ export interface MisOverview {
   hotWarm: number;
   won: number;
   avgScore: number | null;
+  /** Calculated deal value and volume (minutes a month) of open accounts. */
+  openDealValue: number;
+  openVolume: number;
   funnel: FunnelStepRow[];
   bands: BandRow[];
   bandTotalsBySource: Record<string, number>;
@@ -181,6 +184,8 @@ export function computeMisOverview(leads: Lead[], { today = TODAY }: { today?: s
     hotWarm: scored.filter((x) => x.band === "hot" || x.band === "warm").length,
     won: leads.filter((l) => l.stage === "won").length,
     avgScore: average(scored.map((x) => x.score)),
+    openDealValue: leads.filter((l) => isActiveStage(l.stage)).reduce((n, l) => n + l.dealValue, 0),
+    openVolume: leads.filter((l) => isActiveStage(l.stage)).reduce((n, l) => n + (l.volume ?? 0), 0),
     funnel,
     bands,
     bandTotalsBySource,

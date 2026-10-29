@@ -13,6 +13,7 @@
 import ExcelJS from "exceljs";
 import { createClient } from "@supabase/supabase-js";
 import { INDUSTRIES } from "@/lib/constants";
+import { calculateDeal } from "@/lib/deal-calculator";
 import { toIstIso } from "@/lib/dates";
 import { leadBand, leadScore } from "@/lib/scoring";
 import type { Database } from "@/types/supabase";
@@ -151,7 +152,8 @@ interface Planned {
   sourceStatus: string | null;
   discoveryMonth: string | null;
   discoveryDate: string | null;
-  volume: number | null;
+  /** The sheet's Volume figure: calls a month (empty = the segment's industry average). */
+  callsPerMonth: number | null;
   responsiveness: number;
   decisionAccess: number;
   timingBudget: number;
@@ -229,7 +231,8 @@ sheet.eachRow((row, n) => {
     sourceStatus: status || null,
     discoveryMonth: month ? `${month.slice(0, 7)}-01` : discoveryDate ? `${discoveryDate.slice(0, 7)}-01` : null,
     discoveryDate,
-    volume,
+    // 0 means "not mentioned": the segment's industry average applies.
+    callsPerMonth: volume === 0 ? null : volume,
     responsiveness: clamp(int(row.getCell(C.resp).value), 10),
     decisionAccess: clamp(int(row.getCell(C.access).value), 10),
     timingBudget: clamp(timingRaw, 5),
@@ -351,6 +354,7 @@ for (const a of accounts) {
   const createdDay = [a.discoveryDate, a.discoveryMonth, a.updatedOn].filter((d): d is string => Boolean(d)).sort()[0] ?? today;
   const createdAt = toIstIso(createdDay, 10, 0);
   const closed = a.stage === "won" || a.stage === "lost";
+  const deal = calculateDeal({ segment: a.segment, callsPerMonth: a.callsPerMonth, minutesPerCall: null, pricePerMinute: null, contractMonths: null });
   const { data: lead, error } = await db
     .from("leads")
     .insert({
@@ -361,8 +365,10 @@ for (const a of accounts) {
       source: a.source,
       stage: a.stage,
       priority: leadBand(a) === "hot" || leadBand(a) === "warm" ? "high" : leadBand(a) === "nurture" ? "medium" : "low",
-      deal_value: 0,
-      volume: a.volume,
+      // Volume (minutes a month) and deal value from the calculator, as the app stores them.
+      deal_value: deal.dealValue,
+      volume: deal.volume,
+      calls_per_month: a.callsPerMonth,
       responsiveness: a.responsiveness,
       decision_access: a.decisionAccess,
       timing_budget: a.timingBudget,

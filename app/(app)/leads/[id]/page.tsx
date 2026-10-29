@@ -13,6 +13,7 @@ import { DeleteLeadButton } from "@/components/leads/delete-lead-button";
 import { FollowUpEditor } from "@/components/leads/follow-up-editor";
 import { LogActivityDialog } from "@/components/leads/log-activity-dialog";
 import { BandBadge } from "@/components/leads/band-badge";
+import { DealCard } from "@/components/leads/deal-card";
 import { ScoreCard } from "@/components/leads/score-card";
 import { StageHistory } from "@/components/leads/stage-history";
 import { StageStepper } from "@/components/leads/stage-stepper";
@@ -159,6 +160,7 @@ function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean;
             </Card>
           )}
           <ScoreCard lead={lead} />
+          <DealCard lead={lead} />
           <Card>
             <CardHeader>
               <CardTitle>Details</CardTitle>
@@ -191,7 +193,7 @@ function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean;
                   </Detail>
                 )}
                 <Detail label="Volume">
-                  <span className="tabular-nums">{lead.volume !== null ? formatNumber(lead.volume) : "—"}</span>
+                  <span className="tabular-nums">{lead.volume !== null ? `${formatNumber(lead.volume)} min / month` : "—"}</span>
                 </Detail>
                 <Detail label="Deal value">
                   <span className="tabular-nums">{lead.dealValue > 0 ? formatINR(lead.dealValue) : "—"}</span>

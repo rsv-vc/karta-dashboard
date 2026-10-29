@@ -19,6 +19,7 @@ import { checkDuplicates, createLead, updateLead, type DuplicateMatch } from "@/
 import { StageBadge } from "@/components/shared/stage-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DealCalculatorFields } from "@/components/leads/deal-calculator-fields";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,6 @@ import {
 } from "@/lib/constants";
 import { createLeadSchema, leadFormSchema, type LeadFormValues } from "@/lib/leads/schemas";
 import { SCORE_CRITERIA } from "@/lib/scoring";
-import { formatINR, formatINRShort } from "@/lib/utils";
 
 type Option = { value: string; label: string };
 const toOptions = (values: readonly string[], labels?: Record<string, string>): Option[] =>
@@ -80,7 +80,6 @@ export function LeadForm({
   });
   const { register, control, handleSubmit, setError, formState } = form;
   const companyName = useWatch({ control, name: "companyName" }) ?? "";
-  const dealValue = useWatch({ control, name: "dealValue" });
 
   // Debounced duplicate lookup; skipped in edit mode until the name changes.
   useEffect(() => {
@@ -188,41 +187,13 @@ export function LeadForm({
             </Field>
           ))}
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field data-invalid={Boolean(formState.errors.volume)}>
-            <FieldLabel htmlFor="volume">Volume (optional)</FieldLabel>
-            <Input
-              id="volume"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              placeholder="15000"
-              aria-invalid={Boolean(formState.errors.volume)}
-              {...register("volume", { setValueAs: (v) => (v === "" || v === null ? null : Number(v)) })}
-            />
-            <FieldDescription>What the account would run, e.g. calls a month.</FieldDescription>
-            <FieldError errors={[formState.errors.volume]} />
-          </Field>
-          <Field data-invalid={Boolean(formState.errors.dealValue)}>
-            <FieldLabel htmlFor="dealValue">Deal value (₹, optional)</FieldLabel>
-            <Input
-              id="dealValue"
-              type="number"
-              inputMode="numeric"
-              step={10000}
-              min={0}
-              placeholder="0"
-              aria-invalid={Boolean(formState.errors.dealValue)}
-              {...register("dealValue", { setValueAs: (v) => (v === "" ? 0 : Number(v)) })}
-            />
-            {Number.isFinite(dealValue) && dealValue > 0 && (
-              <FieldDescription>
-                {formatINR(dealValue)} · {formatINRShort(dealValue)}
-              </FieldDescription>
-            )}
-            <FieldError errors={[formState.errors.dealValue]} />
-          </Field>
-        </div>
+      </Section>
+
+      <Section
+        title="Volume & deal value"
+        description="Volume = calls × minutes; deal value = volume × price a minute × contract months. Leave a field empty to use its default."
+      >
+        <DealCalculatorFields register={register} control={control} errors={formState.errors} />
       </Section>
 
       <Section title="Next step & notes">

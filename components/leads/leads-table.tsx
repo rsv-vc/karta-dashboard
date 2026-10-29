@@ -207,7 +207,7 @@ export function LeadsTable({
         <span className="tabular-nums">{rows.length}</span> accounts · <span className="font-medium text-foreground tabular-nums">{open.length}</span> open
         {openVolume > 0 && (
           <>
-            {" "}· <span className="font-medium text-foreground tabular-nums">{formatNumber(openVolume)}</span> open volume
+            {" "}· <span className="font-medium text-foreground tabular-nums">{formatNumber(openVolume)}</span> open minutes / month
           </>
         )}
       </p>

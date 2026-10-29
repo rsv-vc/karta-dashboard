@@ -44,7 +44,7 @@ export function LeadCardList({
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <BandBadge band={r.band} score={r.score} />
-              {r.volume !== null && <span className="tabular-nums">Vol. {formatNumber(r.volume)}</span>}
+              {r.volume !== null && <span className="tabular-nums">{formatNumber(r.volume)} min/mo</span>}
               <span className="inline-flex items-center gap-1">
                 <span className="text-muted-foreground">Next</span>
                 <FollowUpLabel date={r.nextFollowUpAt} />

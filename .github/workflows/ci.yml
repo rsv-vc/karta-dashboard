@@ -47,6 +47,7 @@ jobs:
           npm run check:reports
           npm run check:accounts
           npm run check:home
+          npm run check:deal
       - run: npm run build
       - name: No secrets in client bundles
         run: npm run check:secrets

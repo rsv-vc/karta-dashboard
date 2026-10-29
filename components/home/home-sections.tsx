@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { MisOverview } from "@/lib/dashboard/mis";
 import { BANDS, SCORE_CRITERIA, STAGE_POINTS } from "@/lib/scoring";
-import { cn, formatDate, formatMonth } from "@/lib/utils";
+import { cn, formatDate, formatINRShort, formatMonth, formatNumber } from "@/lib/utils";
 
 // Read-only sections of the home page, one per block of the workbook's
 // Pipeline Overview and Monthly Funnel tabs.
@@ -17,12 +17,18 @@ const NUM = "text-right tabular-nums";
 
 export function HomeTiles({ o, scopeLabel }: { o: MisOverview; scopeLabel: string }) {
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
       <StatTile label="Accounts tracked" value={o.tracked} detail={scopeLabel} href="/leads" />
       <StatTile label="Discoveries held" value={o.discoveriesHeld} detail={`${o.notMetYet} not met yet`} />
       <StatTile label="Active (Hot + Warm)" value={o.hotWarm} detail="Score 20 or more" href="/leads?band=hot,warm" />
       <StatTile label="Won (paid)" value={o.won} href="/leads?stage=won" />
       <StatTile label="Average score" value={one(o.avgScore)} detail="out of 40" />
+      <StatTile
+        label="Open deal value"
+        value={formatINRShort(o.openDealValue)}
+        detail={`${formatNumber(o.openVolume)} min / month`}
+        href="/leads?status=active"
+      />
     </div>
   );
 }

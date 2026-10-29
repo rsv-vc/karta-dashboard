@@ -16,6 +16,7 @@ import {
   type Industry,
 } from "@/lib/constants";
 import { fromDayNumber, toDateKey, toDayNumber, toIstIso } from "@/lib/dates";
+import { calculateDeal } from "@/lib/deal-calculator";
 import { createRng } from "@/lib/random";
 import { DEMO_USER_IDS as U } from "@/data/mock-users";
 
@@ -515,7 +516,12 @@ function misFields(stage: LeadStage, history: StageHistoryEntry[]) {
   const first = history.find((e) => e.stage !== "not_met" && e.stage !== "lost");
   const discoveryDate = first ? toDateKey(first.startDate) : null;
   return {
-    volume: misRng.rand() < 0.8 ? misRng.int(5, 80) * 1000 : null,
+    // Calls a month entered for most accounts; the rest use their segment's average.
+    // (Deal values stay the generator's fictional ₹ figures so report numbers are stable.)
+    callsPerMonth: misRng.rand() < 0.8 ? misRng.int(5, 80) * 1000 : null,
+    minutesPerCall: null,
+    pricePerMinute: null,
+    contractMonths: null,
     responsiveness: stage === "lost" ? 0 : misRng.pick(advanced ? [5, 7, 10] : [0, 3, 5]),
     decisionAccess: misRng.pick(advanced ? [7, 10] : [1, 4, 7]),
     timingBudget: stage === "lost" ? 0 : misRng.pick(advanced ? [3, 5] : [0, 3]),
@@ -524,6 +530,12 @@ function misFields(stage: LeadStage, history: StageHistoryEntry[]) {
     nextStep: isActiveStage(stage) ? misRng.pick(NEXT_STEPS) : "",
     sourceStatus: null,
   };
+}
+
+/** Volume (minutes a month) from the calculator, like the app stores it. */
+function withVolume<T extends { callsPerMonth: number | null }>(segment: string, fields: T) {
+  const deal = calculateDeal({ segment, callsPerMonth: fields.callsPerMonth, minutesPerCall: null, pricePerMinute: null, contractMonths: null });
+  return { ...fields, volume: deal.volume };
 }
 
 // ---------------------------------------------------------------------------
@@ -568,7 +580,7 @@ function generateLeads(): Lead[] {
       nextFollowUpAt: active ? nextFollowUp(s.createdDay) : null,
       closedAt,
       notes: identity.notes,
-      ...misFields(stage, stageHistory),
+      ...withVolume(identity.industry, misFields(stage, stageHistory)),
       stageHistory,
       activities,
     };

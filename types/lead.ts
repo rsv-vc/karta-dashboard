@@ -66,11 +66,16 @@ export interface Lead {
   source: LeadSource;
   stage: LeadStage;
   priority: LeadPriority;
-  /** Whole rupees; 0 = not set. */
+  /** Whole rupees: volume × price per minute × contract months (lib/deal-calculator.ts). */
   dealValue: number;
   currency: "INR";
-  /** Volume the account would run (e.g. calls a month); null = unknown. */
+  /** Minutes a month = calls × minutes per call; null = unknown (no calls and no industry average). */
   volume: number | null;
+  /** Calculator inputs; null = the default (segment's industry average, 5 min, ₹4/min, 12 months). */
+  callsPerMonth: number | null;
+  minutesPerCall: number | null;
+  pricePerMinute: number | null;
+  contractMonths: number | null;
   /** Score inputs (the Scoring Guide): 0–10, 0–10, 0–5. */
   responsiveness: number;
   decisionAccess: number;

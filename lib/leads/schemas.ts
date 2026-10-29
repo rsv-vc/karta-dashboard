@@ -41,13 +41,12 @@ export const leadFormSchema = z.object({
     .refine((v) => v === "" || /^https?:\/\/(www\.)?linkedin\.com\/.+/i.test(v), "Enter a linkedin.com URL or leave empty"),
   source: z.enum(SOURCES, "Pick a source"),
   priority: z.enum(PRIORITIES, "Pick a priority"),
-  /** Whole rupees; 0 = not set yet. */
-  dealValue: z
-    .number("Enter a deal value in rupees, or 0")
-    .int("Use whole rupees")
-    .min(0, "Cannot be negative")
-    .max(1_000_000_000, "Maximum ₹100 crore"),
-  volume: z.number().int("Whole numbers only").min(0, "Cannot be negative").max(1_000_000_000).nullable(),
+  // Deal calculator inputs; null = the default (lib/deal-calculator.ts). Volume
+  // and deal value are always calculated from these on the server.
+  callsPerMonth: z.number().int("Whole calls only").min(0, "Cannot be negative").max(100_000_000, "Too large").nullable(),
+  minutesPerCall: z.number().positive("More than 0").max(120, "At most 120 minutes").nullable(),
+  pricePerMinute: z.number().min(0, "Cannot be negative").max(1000, "At most ₹1,000").nullable(),
+  contractMonths: z.number().int("Whole months only").min(1, "At least 1 month").max(120, "At most 120 months").nullable(),
   responsiveness: score(10),
   decisionAccess: score(10),
   timingBudget: score(5),

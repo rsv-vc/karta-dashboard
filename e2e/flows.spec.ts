@@ -47,7 +47,11 @@ test("agent creates a lead through the duplicate warning", async ({ page }) => {
   await page.getByLabel("Responsiveness (0–10)").fill("10");
   await page.getByLabel("Decision access (0–10)").fill("7");
   await page.getByLabel("Timing / budget (0–5)").fill("3");
-  await page.getByLabel("Volume (optional)").fill("20000");
+  // Calculator: 20,000 calls × 5 min = 1,00,000 min; × ₹3 × 12 months = ₹36,00,000.
+  await page.getByLabel("Calls a month").fill("20000");
+  await page.getByLabel("Price a minute (₹)").fill("3");
+  await expect(page.getByText("1,00,000 min / month").first()).toBeVisible();
+  await expect(page.getByText("₹36,00,000").first()).toBeVisible();
   await page.getByLabel("Next step", { exact: true }).fill("Discovery call");
 
   // "Zenith Retail …" matches the seeded Zenith leads: a masked warning appears.
@@ -63,6 +67,8 @@ test("agent creates a lead through the duplicate warning", async ({ page }) => {
   await expect(page.getByRole("heading", { name: COMPANY })).toBeVisible();
   // Score = Not met yet 1 + 10 + 7 + 3 = 21 → Warm.
   await expect(page.getByText("Warm · 21").first()).toBeVisible();
+  // The account page shows the same calculation.
+  await expect(page.getByText("₹36,00,000").first()).toBeVisible();
 });
 
 test("agent moves it forward, logs a call and reschedules", async ({ page }) => {

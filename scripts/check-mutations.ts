@@ -49,8 +49,10 @@ const input: LeadFormValues = {
   pocLinkedIn: "",
   source: "referral",
   priority: "high",
-  dealValue: 1_500_000,
-  volume: 20_000,
+  callsPerMonth: 20_000,
+  minutesPerCall: null,
+  pricePerMinute: 3,
+  contractMonths: null,
   responsiveness: 5,
   decisionAccess: 7,
   timingBudget: 3,
@@ -94,6 +96,11 @@ for (const to of ["discovery_done", "follow_up", "technical_round", "poc_pitched
 check("not met → won stays valid at every step (timestamps kept ordered)", ok);
 check("the first discovery dates the account", lead.discoveryDate === "2026-10-28" && lead.discoveryMonth === "2026-10");
 check("won sets closedAt and final value", lead.closedAt !== null && lead.dealValue === 1_800_000 && lead.nextFollowUpAt === null);
+check("new account: volume and deal value come from the calculator", buildNewLead(input, { id: "L-2002", ownerId: U.priya, byUserId: U.priya, at }).volume === 100_000 && buildNewLead(input, { id: "L-2003", ownerId: U.priya, byUserId: U.priya, at }).dealValue === 3_600_000);
+const keptFinal = applyLeadEdits(lead, { ...input, notes: "Signed" }, { byUserId: U.priya, canReassign: false, ownerName: (id) => id });
+check("editing a won account keeps its final value when no calculator input changed", keptFinal.dealValue === 1_800_000);
+const repriced = applyLeadEdits(lead, { ...input, pricePerMinute: 5 }, { byUserId: U.priya, canReassign: false, ownerName: (id) => id });
+check("…and recalculates when one did (1,00,000 min × ₹5 × 12)", repriced.dealValue === 6_000_000);
 check("one stage_change per transition", lead.activities.filter((a) => a.type === "stage_change").length === 7);
 check("won is terminal", allowedNextStages("won").length === 0 && throws(() => applyStageChange(lead, { to: "lost", lostReason: "x" }, { byUserId: U.priya })));
 check("activity on a closed lead throws", throws(() => applyActivity(lead, { type: "call", description: "Hi", date: TODAY, nextFollowUpDate: "" }, { byUserId: U.priya })));

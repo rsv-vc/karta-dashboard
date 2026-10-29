@@ -1,5 +1,6 @@
 import { STAGES, STAGE_LABELS, TODAY, canMoveStage, isActiveStage } from "@/lib/constants";
 import { laterThan, nowIso, toDateKey, toIstIso } from "@/lib/dates";
+import { calculateDeal, dealInputsChanged, type DealInputs } from "@/lib/deal-calculator";
 import type { LeadFormValues, LogActivityValues } from "@/lib/leads/schemas";
 import type { ActivityEntry, ActivityType, Lead, LeadStage } from "@/types/lead";
 
@@ -42,8 +43,20 @@ function addActivity(lead: Lead, activity: Omit<ActivityEntry, "id">): ActivityE
   return next.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/** Fields shared by create and edit, normalized. */
+/** The calculator inputs of a form or a stored account. */
+export function dealInputsOf(v: Pick<LeadFormValues, "industry" | "callsPerMonth" | "minutesPerCall" | "pricePerMinute" | "contractMonths">): DealInputs {
+  return {
+    segment: v.industry,
+    callsPerMonth: v.callsPerMonth,
+    minutesPerCall: v.minutesPerCall,
+    pricePerMinute: v.pricePerMinute,
+    contractMonths: v.contractMonths,
+  };
+}
+
+/** Fields shared by create and edit, normalized. Volume and deal value are calculated. */
 function detailsFrom(input: LeadFormValues) {
+  const deal = calculateDeal(dealInputsOf(input));
   return {
     companyName: input.companyName.trim(),
     industry: input.industry,
@@ -56,8 +69,12 @@ function detailsFrom(input: LeadFormValues) {
     pocLinkedIn: input.pocLinkedIn.trim() || undefined,
     source: input.source,
     priority: input.priority,
-    dealValue: input.dealValue,
-    volume: input.volume,
+    callsPerMonth: input.callsPerMonth,
+    minutesPerCall: input.minutesPerCall,
+    pricePerMinute: input.pricePerMinute,
+    contractMonths: input.contractMonths,
+    volume: deal.volume,
+    dealValue: deal.dealValue,
     responsiveness: input.responsiveness,
     decisionAccess: input.decisionAccess,
     timingBudget: input.timingBudget,
@@ -97,9 +114,13 @@ export function applyLeadEdits(
   input: LeadFormValues,
   opts: Actor & { canReassign: boolean; ownerName: (id: string) => string },
 ): Lead {
+  const details = detailsFrom(input);
+  // Keep the stored totals (e.g. a final value recorded when won) unless an input changed.
+  const unchanged = !dealInputsChanged(dealInputsOf({ ...lead, industry: lead.industry as LeadFormValues["industry"] }), dealInputsOf(input));
   const next: Lead = {
     ...lead,
-    ...detailsFrom(input),
+    ...details,
+    ...(unchanged ? { volume: lead.volume, dealValue: lead.dealValue } : {}),
     // A closed lead has no follow-up; ignore any date sent for one.
     nextFollowUpAt: isActiveStage(lead.stage) ? followUpIso(input.nextFollowUpDate) : null,
   };
