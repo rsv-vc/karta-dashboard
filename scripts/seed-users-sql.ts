@@ -1,5 +1,5 @@
 // Prints the SQL that creates the (fictional) demo team in the TEST project's Auth + profiles:
-// `npx tsx --env-file=.env.local scripts/seed-users-sql.ts > <file>`, then run it
+// `npx tsx --env-file=.env.test.local scripts/seed-users-sql.ts > <file>`, then run it
 // in the Supabase SQL editor (or via the MCP execute_sql tool).
 // Only a bcrypt hash of DEMO_PASSWORD is printed, never the password itself.
 import bcrypt from "bcryptjs";
@@ -7,7 +7,7 @@ import { mockUsers } from "@/data/mock-users";
 
 const password = process.env.DEMO_PASSWORD;
 if (!password || password.length < 12) {
-  console.error("Set DEMO_PASSWORD (12+ characters) in .env.local first");
+  console.error("Set DEMO_PASSWORD (12+ characters) in .env.test.local first");
   process.exit(1);
 }
 
