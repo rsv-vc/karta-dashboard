@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { COMPANY_SIZES, INDUSTRIES, PRIORITIES, SOURCES, STAGE_VALUES, TODAY } from "@/lib/constants";
+import { COMPANY_SIZES, PRIORITIES, SOURCES, STAGE_VALUES, TODAY } from "@/lib/constants";
 import type { ActivityType } from "@/types/lead";
 
 // Form schemas shared by Client Components (react-hook-form) and Server Actions.
@@ -27,7 +27,8 @@ const score = (max: number) =>
 
 export const leadFormSchema = z.object({
   companyName: z.string().trim().min(2, "Enter the company name").max(120),
-  industry: z.enum(INDUSTRIES, "Pick a segment"),
+  // A name from the Industries master (the database checks it exists).
+  industry: z.string().trim().min(1, "Pick a segment").max(60),
   /** "" = not known. */
   companySize: z.enum(["", ...COMPANY_SIZES]),
   city: z.string().trim().max(60, "Keep the city under 60 characters"),
@@ -83,12 +84,15 @@ export const changeStageSchema = z
   .object({
     to: z.enum(STAGE_VALUES),
     note: z.string().trim().max(300),
+    /** Optional details for Lost / Deferred, next to the reason picked from the list. */
     lostReason: z.string().trim().max(300),
+    /** A reason from the Drop-off reasons master; required for Lost and Deferred. */
+    reasonId: z.number().int().positive().optional(),
     finalDealValue: z.number().int().positive().optional(),
   })
   .superRefine((v, ctx) => {
-    if (v.to === "lost" && v.lostReason.length < 3) {
-      ctx.addIssue({ code: "custom", path: ["lostReason"], message: "Say why the account was lost" });
+    if ((v.to === "lost" || v.to === "deferred") && !v.reasonId) {
+      ctx.addIssue({ code: "custom", path: ["reasonId"], message: "Pick a reason from the list" });
     }
   });
 

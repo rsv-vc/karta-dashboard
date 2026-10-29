@@ -75,7 +75,6 @@ export function DirectoryCardList({ rows, empty, className }: { rows: DirectoryR
                 <p className="truncate font-medium">{r.companyName}</p>
                 <p className="truncate text-sm text-muted-foreground">{r.pocName}</p>
               </div>
-              <StageBadge stage={r.stage} />
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <UserAvatar name={r.ownerName} className="size-5" />

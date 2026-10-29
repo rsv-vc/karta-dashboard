@@ -103,9 +103,10 @@ const clamp = (n: number, max: number) => Math.max(0, Math.min(max, Math.round(n
 
 type Scored = Pick<Lead, "stage" | "responsiveness" | "decisionAccess" | "timingBudget">;
 
-export function leadScore(lead: Scored): number {
+/** `points` = the stage points from the Stages master (defaults to the seeded values). */
+export function leadScore(lead: Scored, points: Record<LeadStage, number> = STAGE_POINTS): number {
   return (
-    STAGE_POINTS[lead.stage] +
+    points[lead.stage] +
     clamp(lead.responsiveness, 10) +
     clamp(lead.decisionAccess, 10) +
     clamp(lead.timingBudget, 5)
@@ -116,6 +117,6 @@ export function bandFor(score: number): Band {
   return (BANDS.find((b) => score >= b.min) ?? BANDS[BANDS.length - 1]).value;
 }
 
-export function leadBand(lead: Scored): Band {
-  return bandFor(leadScore(lead));
+export function leadBand(lead: Scored, points: Record<LeadStage, number> = STAGE_POINTS): Band {
+  return bandFor(leadScore(lead, points));
 }

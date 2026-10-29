@@ -37,11 +37,15 @@ export function MembersCard({
   viewerId,
   canManageAccounts,
   actions,
+  title = "Members & access",
+  description = "Employees have admin access; sales agents see only their own leads.",
 }: {
   people: MemberRow[];
   viewerId: string;
   canManageAccounts: boolean;
   actions?: React.ReactNode;
+  title?: string;
+  description?: string;
 }) {
   const [dialog, setDialog] = useState<Pending | null>(null);
   const active = people.filter((p) => p.status === "active");
@@ -50,9 +54,9 @@ export function MembersCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Members &amp; access</CardTitle>
+        <CardTitle>{title}</CardTitle>
         <CardDescription>
-          Employees have admin access; sales agents see only their own leads. {active.length} active
+          {description} {active.length} active
           {inactive.length > 0 ? `, ${inactive.length} deactivated` : ""}.
         </CardDescription>
         {actions && <CardAction>{actions}</CardAction>}

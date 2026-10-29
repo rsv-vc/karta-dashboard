@@ -30,9 +30,19 @@ const TYPE_HINTS: Record<Role, string> = {
 };
 
 /** Admin: create an employee or sales agent and hand over a one-time temporary password. */
-export function AddMemberDialog({ companyDomains, disabled }: { companyDomains: string[]; disabled: boolean }) {
+export function AddMemberDialog({
+  companyDomains,
+  disabled,
+  defaultRole = "sales_agent",
+}: {
+  companyDomains: string[];
+  disabled: boolean;
+  /** The member type picked when the dialog opens. */
+  defaultRole?: Role;
+}) {
+  const empty: AddMemberValues = { ...EMPTY, role: defaultRole };
   const [open, setOpen] = useState(false);
-  const [values, setValues] = useState<AddMemberValues>(EMPTY);
+  const [values, setValues] = useState<AddMemberValues>(empty);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -40,7 +50,7 @@ export function AddMemberDialog({ companyDomains, disabled }: { companyDomains: 
   const domains = companyDomains.map((d) => `@${d}`).join(", ");
 
   function reset() {
-    setValues(EMPTY);
+    setValues(empty);
     setErrors({});
     setCreated(null);
   }

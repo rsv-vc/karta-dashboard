@@ -2,23 +2,28 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { requireRole, requireUser } from "@/lib/auth/dal";
 import { isAdmin, partitionLeadsForUser, type VisibleLead } from "@/lib/auth/permissions";
+import { stageLabelsOf, stagePointsOf } from "@/lib/config";
 import { TODAY, isActiveStage } from "@/lib/constants";
 import { STALE_AFTER_DAYS, computeAgentDashboard, type AgentDashboard } from "@/lib/dashboard/agent-metrics";
 import { buildFollowUpBoard, type FollowUpBoard } from "@/lib/dashboard/follow-ups";
+import { computeHome } from "@/lib/dashboard/home";
 import { computeMisOverview } from "@/lib/dashboard/mis";
 import { computeTeamDashboard, type TeamDashboard, type TeamPeriod } from "@/lib/dashboard/team-metrics";
 import {
   fetchAccessRules,
+  fetchAppConfig,
   fetchDirectory,
   fetchFunnelActions,
   fetchLead,
   fetchLeadSummaries,
+  fetchNotificationsSeenAt,
   fetchTargets,
   fetchTeam,
   fetchVisibleLeads,
 } from "@/lib/data/repo";
 import { daysBetween } from "@/lib/dates";
 import { toDirectoryRow, toLeadRow, type DirectoryRow, type LeadRow } from "@/lib/leads/rows";
+import { buildNotifications, type NotificationFeed } from "@/lib/notifications";
 import { buildMonthlyReport, type MonthlyReport } from "@/lib/reports/monthly";
 import { getFollowUpsDue } from "@/lib/selectors";
 import { isAdminApiConfigured } from "@/lib/supabase/admin";
@@ -65,9 +70,19 @@ export async function getFollowUpCounts(): Promise<FollowUpCounts> {
 
 /** List rows for every lead the viewer may see in full (agent: own; admin: all). */
 export async function getLeadRows(): Promise<LeadRow[]> {
-  const [{ full }, team] = await Promise.all([getVisibleLeads(), fetchTeam()]);
+  const [{ full }, team, config] = await Promise.all([getVisibleLeads(), fetchTeam(), fetchAppConfig()]);
   const nameOf = nameLookup(team);
-  return full.map((lead) => toLeadRow(lead, nameOf));
+  const points = stagePointsOf(config);
+  return full.map((lead) => toLeadRow(lead, nameOf, points));
+}
+
+/** The current user's own accounts as list rows (admins too: only the ones they own). */
+export async function getOwnLeadRows(): Promise<LeadRow[]> {
+  const user = await requireUser();
+  const [{ full }, team, config] = await Promise.all([getVisibleLeads(), fetchTeam(), fetchAppConfig()]);
+  const nameOf = nameLookup(team);
+  const points = stagePointsOf(config);
+  return full.filter((lead) => lead.ownerId === user.id).map((lead) => toLeadRow(lead, nameOf, points));
 }
 
 /** Every lead as a masked directory row; the viewer's own rows are flagged isMine. */
@@ -116,6 +131,26 @@ export async function getAgentDashboard(): Promise<AgentDashboard> {
   const [leads, targetFor] = await Promise.all([fetchVisibleLeads(), fetchTargets(TODAY.slice(0, 7))]);
   const own = leads.filter((l) => l.ownerId === user.id);
   return computeAgentDashboard(own, { today: TODAY, target: targetFor(user.id) });
+}
+
+/** The bell's feed: alerts on the viewer's own accounts, and wins and news (team-wide for employees). */
+export async function getNotifications(): Promise<NotificationFeed> {
+  const user = await requireUser();
+  const [leads, team, targetFor, seenAt] = await Promise.all([
+    fetchVisibleLeads(),
+    fetchTeam(),
+    fetchTargets(TODAY.slice(0, 7)),
+    fetchNotificationsSeenAt(user.id),
+  ]);
+  return buildNotifications(leads, {
+    viewerId: user.id,
+    viewerName: user.name,
+    isAdmin: isAdmin(user),
+    today: TODAY,
+    nameOf: nameLookup(team),
+    target: targetFor(user.id),
+    seenAt,
+  });
 }
 
 /** Follow-up queue: an agent's own leads; for admins every lead, optionally one owner's. */
@@ -219,12 +254,46 @@ export async function getTeamPageData(): Promise<TeamPageData> {
   };
 }
 
-/** The home page for every role: the viewer's accounts (all for admins) and the funnel health tracker. */
+/**
+ * The home page for every role: headline numbers over the viewer's scope (the
+ * whole team for employees, their own accounts for agents), their own action
+ * points, targets, and recent wins and new accounts.
+ */
 export async function getHomeData() {
   const user = await requireUser();
-  const [leads, actions] = await Promise.all([fetchLeadSummaries(), fetchFunnelActions()]);
+  const admin = isAdmin(user);
+  const [leads, team, config, targetFor] = await Promise.all([
+    fetchLeadSummaries(),
+    fetchTeam(),
+    fetchAppConfig(),
+    fetchTargets(TODAY.slice(0, 7)),
+  ]);
   const { full } = partitionLeadsForUser(user, leads);
-  return { overview: computeMisOverview(full, { today: TODAY }), actions, canEdit: isAdmin(user) };
+  const points = stagePointsOf(config);
+  // Employees track the team's targets: the sum over everyone who owns open accounts or is an agent.
+  const owners = activeOwners(team).filter((m) => m.role === "sales_agent" || full.some((l) => l.ownerId === m.id));
+  const target = admin
+    ? owners.reduce((t, m) => ({ wonValue: t.wonValue + targetFor(m.id).wonValue, newLeads: t.newLeads + targetFor(m.id).newLeads }), { wonValue: 0, newLeads: 0 })
+    : targetFor(user.id);
+  return {
+    home: computeHome(full, { today: TODAY, viewerId: user.id, isAdmin: admin, target, points }),
+    overview: computeMisOverview(full, { today: TODAY, points, labels: stageLabelsOf(config) }),
+    names: Object.fromEntries(team.map((m) => [m.id, m.name])),
+    points,
+  };
+}
+
+/** The Investor view (employees): the MIS analysis over every account, plus the funnel health tracker. */
+export async function getInsightsData() {
+  await requireRole("admin");
+  const [leads, actions, config] = await Promise.all([fetchVisibleLeads(), fetchFunnelActions(), fetchAppConfig()]);
+  const points = stagePointsOf(config);
+  return {
+    leads,
+    config,
+    overview: computeMisOverview(leads, { today: TODAY, points, labels: stageLabelsOf(config) }),
+    actions,
+  };
 }
 
 /** Admin monthly report; month keys are validated by the page. */

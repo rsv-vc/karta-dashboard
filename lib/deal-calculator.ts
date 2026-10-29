@@ -5,51 +5,59 @@
 //   Volume (minutes / month) = calls a month × minutes per call
 //   Deal value (₹)           = volume × price per minute × contract months
 //
-// Any input left empty falls back to its default: calls from the account's
-// segment (industry average), 5 minutes a call, ₹4 a minute (the ₹3–5 range's
-// midpoint), and a 12-month contract.
+// Any input left empty falls back to its default from the masters: calls from
+// the account's industry (its average), minutes a call from the industry,
+// and the pricing defaults (₹ a minute with its range, contract months).
+// Without masters it uses the original values (₹4 in a ₹3–5 range, 5 minutes,
+// 12 months, and the four industry averages).
 
-export const DEFAULT_MINUTES_PER_CALL = 5;
-export const DEFAULT_CONTRACT_MONTHS = 12;
-export const PRICE_RANGE = { low: 3, high: 5 } as const;
-export const DEFAULT_PRICE_PER_MINUTE = (PRICE_RANGE.low + PRICE_RANGE.high) / 2;
+import type { AppConfig } from "@/lib/config";
 
 export interface IndustryAverage {
   label: string;
   callsPerMonth: number;
+  minutesPerCall: number;
 }
 
-export const INDUSTRY_AVERAGES = {
-  banking: { label: "Banking", callsPerMonth: 1_500_000 },
-  insurance: { label: "Insurance", callsPerMonth: 1_000_000 },
-  financial_services: { label: "Financial services", callsPerMonth: 800_000 },
-  fintech: { label: "Fintech", callsPerMonth: 500_000 },
-} as const satisfies Record<string, IndustryAverage>;
+export interface CalculatorConfig {
+  industries: AppConfig["industries"];
+  pricing: AppConfig["pricing"];
+}
 
-/** Which industry average each segment uses; segments without one need calls entered. */
-const SEGMENT_INDUSTRY: Record<string, keyof typeof INDUSTRY_AVERAGES> = {
-  Bank: "banking",
-  Insurance: "insurance",
-  NBFC: "financial_services",
-  "Housing finance": "financial_services",
-  "Wealth & AMC": "financial_services",
-  Fintech: "fintech",
+const FALLBACK: CalculatorConfig = {
+  industries: [
+    { name: "Bank", avgCallsPerMonth: 1_500_000, minutesPerCall: 5, active: true },
+    { name: "Insurance", avgCallsPerMonth: 1_000_000, minutesPerCall: 5, active: true },
+    { name: "NBFC", avgCallsPerMonth: 800_000, minutesPerCall: 5, active: true },
+    { name: "Housing finance", avgCallsPerMonth: 800_000, minutesPerCall: 5, active: true },
+    { name: "Wealth & AMC", avgCallsPerMonth: 800_000, minutesPerCall: 5, active: true },
+    { name: "Fintech", avgCallsPerMonth: 500_000, minutesPerCall: 5, active: true },
+    { name: "Healthcare", avgCallsPerMonth: null, minutesPerCall: 5, active: true },
+    { name: "Other", avgCallsPerMonth: null, minutesPerCall: 5, active: true },
+  ],
+  pricing: { pricePerMinute: 4, priceLow: 3, priceHigh: 5, minutesPerCall: 5, contractMonths: 12 },
 };
 
-export function industryAverageFor(segment: string): IndustryAverage | null {
-  const key = SEGMENT_INDUSTRY[segment];
-  return key ? INDUSTRY_AVERAGES[key] : null;
+export const DEFAULT_MINUTES_PER_CALL = FALLBACK.pricing.minutesPerCall;
+export const DEFAULT_CONTRACT_MONTHS = FALLBACK.pricing.contractMonths;
+export const PRICE_RANGE = { low: FALLBACK.pricing.priceLow, high: FALLBACK.pricing.priceHigh } as const;
+export const DEFAULT_PRICE_PER_MINUTE = FALLBACK.pricing.pricePerMinute;
+
+export function industryAverageFor(segment: string, config: CalculatorConfig = FALLBACK): IndustryAverage | null {
+  const industry = config.industries.find((i) => i.name === segment);
+  if (!industry || industry.avgCallsPerMonth === null) return null;
+  return { label: industry.name, callsPerMonth: industry.avgCallsPerMonth, minutesPerCall: industry.minutesPerCall };
 }
 
 export interface DealInputs {
   segment: string;
-  /** null = the segment's industry average. */
+  /** null = the industry's average calls. */
   callsPerMonth: number | null;
-  /** null = 5. */
+  /** null = the industry's minutes a call (else the pricing default). */
   minutesPerCall: number | null;
-  /** null = ₹4 (midpoint of ₹3–5). */
+  /** null = the default price a minute. */
   pricePerMinute: number | null;
-  /** null = 12. */
+  /** null = the default contract length. */
   contractMonths: number | null;
 }
 
@@ -62,8 +70,8 @@ export interface DealCalculation {
   volume: number | null;
   /** Whole rupees; 0 when the volume is unknown. */
   dealValue: number;
-  /** The same deal at ₹3 and ₹5 a minute (only when the price is the default). */
-  range: { low: number; high: number } | null;
+  /** The same deal at the low and high price (only when the price is the default). */
+  range: { low: number; high: number; lowPrice: number; highPrice: number } | null;
   /** Which values came from defaults, for "industry average" / "default" labels. */
   defaults: { calls: boolean; minutes: boolean; price: boolean; months: boolean };
   industry: IndustryAverage | null;
@@ -71,12 +79,13 @@ export interface DealCalculation {
 
 const value = (n: number, months: number, price: number) => Math.round(n * price * months);
 
-export function calculateDeal(inputs: DealInputs): DealCalculation {
-  const industry = industryAverageFor(inputs.segment);
+export function calculateDeal(inputs: DealInputs, config: CalculatorConfig = FALLBACK): DealCalculation {
+  const industry = industryAverageFor(inputs.segment, config);
+  const industryMinutes = config.industries.find((i) => i.name === inputs.segment)?.minutesPerCall;
   const callsPerMonth = inputs.callsPerMonth ?? industry?.callsPerMonth ?? null;
-  const minutesPerCall = inputs.minutesPerCall ?? DEFAULT_MINUTES_PER_CALL;
-  const pricePerMinute = inputs.pricePerMinute ?? DEFAULT_PRICE_PER_MINUTE;
-  const contractMonths = inputs.contractMonths ?? DEFAULT_CONTRACT_MONTHS;
+  const minutesPerCall = inputs.minutesPerCall ?? industryMinutes ?? config.pricing.minutesPerCall;
+  const pricePerMinute = inputs.pricePerMinute ?? config.pricing.pricePerMinute;
+  const contractMonths = inputs.contractMonths ?? config.pricing.contractMonths;
   const volume = callsPerMonth === null ? null : Math.round(callsPerMonth * minutesPerCall);
   const priceIsDefault = inputs.pricePerMinute === null;
 
@@ -89,7 +98,12 @@ export function calculateDeal(inputs: DealInputs): DealCalculation {
     dealValue: volume === null ? 0 : value(volume, contractMonths, pricePerMinute),
     range:
       volume !== null && priceIsDefault
-        ? { low: value(volume, contractMonths, PRICE_RANGE.low), high: value(volume, contractMonths, PRICE_RANGE.high) }
+        ? {
+            low: value(volume, contractMonths, config.pricing.priceLow),
+            high: value(volume, contractMonths, config.pricing.priceHigh),
+            lowPrice: config.pricing.priceLow,
+            highPrice: config.pricing.priceHigh,
+          }
         : null,
     defaults: {
       calls: inputs.callsPerMonth === null && industry !== null,

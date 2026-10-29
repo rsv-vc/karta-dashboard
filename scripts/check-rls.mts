@@ -54,6 +54,10 @@ check("…nor its activities", !peekHistory.error && peekHistory.data!.length ==
 const dir = await priya.rpc("lead_directory");
 const dirKeys = dir.data?.[0] ? Object.keys(dir.data[0]).sort().join(",") : "";
 check(`lead_directory() returns all 75 leads with exactly 5 columns`, !dir.error && dir.data!.length === 75 && dirKeys === "company_name,id,owner_id,poc_name,stage", dirKeys);
+check(
+  "…with the stage only on Priya's own accounts",
+  !dir.error && dir.data!.every((r) => (r.owner_id === PRIYA) === (r.stage !== null)),
+);
 
 const dupes = await priya.rpc("find_possible_duplicates", { p_name: "Zenith Retail Solutions" });
 check("find_possible_duplicates finds both Zenith leads, masked", !dupes.error && dupes.data!.length === 2 && !("poc_email" in (dupes.data![0] ?? {})));
@@ -100,7 +104,7 @@ const created = await admin.rpc("create_lead", {
     poc_designation: "QA",
     poc_email: "qa@example.com",
     poc_phone: "+91 98765 43210",
-    industry: "SaaS",
+    industry: "Other",
     company_size: "11-50",
     city: "Pune",
     source: "website",
@@ -111,6 +115,8 @@ const created = await admin.rpc("create_lead", {
   },
 });
 const tempId = created.data as string;
+const unknownIndustry = await admin.rpc("create_lead", { p: { company_name: "RLS Unknown Industry", poc_name: "X", industry: "Not a real industry", source: "website", priority: "low", owner_id: PRIYA } });
+check("An industry outside the Industries master is refused", Boolean(unknownIndustry.error), unknownIndustry.error?.message);
 check(`Admin creates a lead for Priya (${tempId})`, !created.error && /^L-\d+$/.test(tempId), created.error?.message);
 
 const step = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "discovery_done", p_note: "First call done" });
@@ -123,6 +129,21 @@ const hist = await priya.from("lead_stage_history").select("stage, end_at").eq("
 check("…and history has not met (closed) + discovery done (current)", hist.data?.map((h) => `${h.stage}:${h.end_at ? "ended" : "current"}`).join() === "not_met:ended,discovery_done:current");
 const dated = await priya.from("leads").select("discovery_date, discovery_month").eq("id", tempId).single();
 check("…and the first discovery dates the account", Boolean(dated.data?.discovery_date) && Boolean(dated.data?.discovery_month), dated.data);
+
+const noReason = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "deferred", p_note: "Later" });
+check("Deferring needs a reason from the list", /Pick a reason/.test(noReason.error?.message ?? ""), noReason.error?.message);
+const lostOnly = await priya.from("drop_reasons").select("id").eq("applies_to", "lost").limit(1).single();
+const wrongReason = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "deferred", p_reason_id: lostOnly.data!.id });
+check("…and a lost-only reason is refused for Deferred", Boolean(wrongReason.error), wrongReason.error?.message);
+const anyReason = await priya.from("drop_reasons").select("id, label").eq("applies_to", "both").limit(1).single();
+const deferred = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "deferred", p_reason_id: anyReason.data!.id, p_lost_reason: "Budget in April" });
+check("Priya defers it with a reason", !deferred.error, deferred.error?.message);
+const why = await priya.from("leads").select("drop_reason_id, drop_note").eq("id", tempId).single();
+check("…and the reason and details are stored", why.data?.drop_reason_id === anyReason.data!.id && why.data?.drop_note === "Budget in April", why.data);
+const agentMaster = await priya.from("drop_reasons").insert({ label: "Agents cannot add this" }).select("id");
+check("An agent cannot add to the masters", Boolean(agentMaster.error) || agentMaster.data!.length === 0, agentMaster.error?.message);
+const agentPrice = await priya.from("app_settings").update({ price_per_minute: 1 }).eq("id", true).select("id");
+check("…nor change the pricing", Boolean(agentPrice.error) || agentPrice.data!.length === 0, agentPrice.error?.message);
 
 const moved = await admin.rpc("reassign_leads", { p_lead_ids: [tempId], p_to: ROHAN });
 check("Admin reassigns it to Rohan", !moved.error && moved.data === 1, moved.error?.message);

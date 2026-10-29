@@ -15,7 +15,8 @@ import { StatusFilter } from "@/components/leads/status-filter";
 import { LeadCardList } from "@/components/leads/lead-cards";
 import { LEAD_SORTABLE_IDS, getLeadColumns } from "@/components/leads/lead-columns";
 import { Button } from "@/components/ui/button";
-import { INDUSTRIES, SOURCES, SOURCE_LABELS, STAGES, isActiveStage } from "@/lib/constants";
+import { useAppConfig } from "@/components/config/config-provider";
+import { SOURCES, SOURCE_LABELS, STAGES, isActiveStage } from "@/lib/constants";
 import { BANDS, type Band } from "@/lib/scoring";
 import {
   DEFAULT_FILTERS,
@@ -36,9 +37,7 @@ import type { LeadSource, LeadStage } from "@/types/lead";
 // Most urgent first: overdue follow-ups at the top, leads without one at the bottom.
 const DEFAULT_SORT: SortingState = [{ id: "nextFollowUp", desc: false }];
 
-const STAGE_OPTIONS: FacetOption<LeadStage>[] = STAGES.map((s) => ({ value: s.value, label: s.label, dotClass: s.dotClass }));
 const BAND_OPTIONS: FacetOption<Band>[] = BANDS.map((b) => ({ value: b.value, label: `${b.label} (${b.min}+)` }));
-const SEGMENT_OPTIONS: FacetOption<string>[] = INDUSTRIES.map((s) => ({ value: s, label: s }));
 const SOURCE_OPTIONS: FacetOption<LeadSource>[] = SOURCES.map((s) => ({ value: s, label: SOURCE_LABELS[s] }));
 const FOLLOW_UP_OPTIONS: FacetOption<FollowUpBucket>[] = FOLLOW_UP_BUCKETS.map((b) => ({
   value: b,
@@ -65,6 +64,9 @@ export function LeadsTable({
   });
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibilityState>({ source: false });
 
+  const config = useAppConfig();
+  const stageOptions: FacetOption<LeadStage>[] = STAGES.map((s) => ({ value: s.value, label: config.stages[s.value].label, dotClass: s.dotClass }));
+  const segmentOptions: FacetOption<string>[] = config.industries.map((i) => ({ value: i.name, label: i.name }));
   const columns = useMemo(() => getLeadColumns(showOwner), [showOwner]);
   const filtered = useMemo(() => filterLeadRows(rows, filters), [rows, filters]);
 
@@ -109,7 +111,7 @@ export function LeadsTable({
     <>
       <FacetedFilter
         title="Stage"
-        options={STAGE_OPTIONS}
+        options={stageOptions}
         selected={filters.stages}
         counts={facetCounts(rows, filters, "stages")}
         onChange={(stages) => setFilters({ ...filters, stages })}
@@ -123,7 +125,7 @@ export function LeadsTable({
       />
       <FacetedFilter
         title="Segment"
-        options={SEGMENT_OPTIONS}
+        options={segmentOptions}
         selected={filters.segments}
         counts={facetCounts(rows, filters, "segments")}
         onChange={(segments) => setFilters({ ...filters, segments })}

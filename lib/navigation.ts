@@ -1,8 +1,10 @@
 import {
   BarChart3Icon,
   BellRingIcon,
-  BookUserIcon,
+  ClipboardListIcon,
+  DatabaseIcon,
   HouseIcon,
+  TrendingUpIcon,
   PlusIcon,
   SettingsIcon,
   UsersIcon,
@@ -16,12 +18,14 @@ import type { Role } from "@/types/user";
 
 export type NavKey =
   | "dashboard"
+  | "myLeads"
   | "leads"
-  | "directory"
   | "newLead"
   | "followUps"
+  | "insights"
   | "team"
   | "reports"
+  | "masters"
   | "settings";
 
 export interface NavItem {
@@ -49,23 +53,23 @@ export const NAV_ITEMS: Record<NavKey, NavItem> = {
     phase: 6,
     description: "Pipeline overview, monthly funnel, next steps and funnel health.",
   },
+  myLeads: {
+    key: "myLeads",
+    href: "/my-leads",
+    icon: ClipboardListIcon,
+    label: "My leads",
+    roles: ALL_ROLES,
+    phase: 12,
+    description: "The accounts you own, in full, with filters and search.",
+  },
   leads: {
     key: "leads",
     href: "/leads",
     icon: UsersIcon,
-    label: { sales_agent: "My leads", admin: "All leads" },
+    label: "All leads",
     roles: ALL_ROLES,
     phase: 4,
-    description: "Every lead you can work on, with filters and search.",
-  },
-  directory: {
-    key: "directory",
-    href: "/leads/directory",
-    icon: BookUserIcon,
-    label: "Lead directory",
-    roles: ["sales_agent"],
-    phase: 4,
-    description: "Who is already working which company, so nobody chases the same lead.",
+    description: "Every account the team is working.",
   },
   newLead: {
     key: "newLead",
@@ -86,6 +90,15 @@ export const NAV_ITEMS: Record<NavKey, NavItem> = {
     description: "Overdue, today's and upcoming follow-ups.",
     badge: "overdueFollowUps",
   },
+  insights: {
+    key: "insights",
+    href: "/insights",
+    icon: TrendingUpIcon,
+    label: "Investor view",
+    roles: ["admin"],
+    phase: 12,
+    description: "Pipeline and revenue, funnel root causes and drop-off reasons, and cohort trends.",
+  },
   team: {
     key: "team",
     href: "/team",
@@ -104,6 +117,15 @@ export const NAV_ITEMS: Record<NavKey, NavItem> = {
     phase: 8,
     description: "Monthly performance reports and exports.",
   },
+  masters: {
+    key: "masters",
+    href: "/masters",
+    icon: DatabaseIcon,
+    label: "Masters",
+    roles: ["admin"],
+    phase: 12,
+    description: "Team, industries and their average volumes, cities, pricing, stages and drop-off reasons.",
+  },
   settings: {
     key: "settings",
     href: "/settings",
@@ -121,8 +143,8 @@ export interface NavSection {
 }
 
 const SECTIONS: { label: string; keys: NavKey[] }[] = [
-  { label: "Workspace", keys: ["dashboard", "leads", "directory", "followUps"] },
-  { label: "Admin", keys: ["team", "reports"] },
+  { label: "Workspace", keys: ["dashboard", "myLeads", "leads", "followUps"] },
+  { label: "Employees", keys: ["insights", "team", "reports", "masters"] },
 ];
 
 export function canSeeNavItem(item: NavItem, role: Role): boolean {
@@ -146,7 +168,7 @@ export function getNavTitle(key: NavKey, role: Role = "sales_agent"): string {
   return getNavLabel(NAV_ITEMS[key], role);
 }
 
-/** The item whose href is the longest prefix of the path ("/leads/directory" beats "/leads"). */
+/** The item whose href is the longest prefix of the path ("/leads/new" beats "/leads"). */
 export function findNavItem(pathname: string): NavItem | undefined {
   return Object.values(NAV_ITEMS)
     .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
@@ -159,7 +181,7 @@ export interface Breadcrumb {
 }
 
 /**
- * Crumbs for every nav item that prefixes the path, e.g. Leads › Lead directory.
+ * Crumbs for every nav item that prefixes the path, e.g. All leads › Add lead.
  * A deeper path with no nav item of its own (a record page such as /leads/L-1001)
  * gets a generic final "Details" crumb.
  */

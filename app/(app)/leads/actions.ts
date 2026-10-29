@@ -5,8 +5,8 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/dal";
 import { canCreateLead, canDeleteLead, canReassignLead, canViewFullLead, isAdmin } from "@/lib/auth/permissions";
 import { TODAY } from "@/lib/constants";
-import { fetchLead, fetchTeam } from "@/lib/data/repo";
-import { calculateDeal, dealInputsChanged } from "@/lib/deal-calculator";
+import { fetchAppConfig, fetchLead, fetchTeam } from "@/lib/data/repo";
+import { calculateDeal, dealInputsChanged, type CalculatorConfig } from "@/lib/deal-calculator";
 import { dealInputsOf, followUpIso, normalizePhone } from "@/lib/leads/mutations";
 import {
   changeStageSchema,
@@ -32,7 +32,8 @@ export interface DuplicateMatch {
   id: string;
   companyName: string;
   ownerName: string;
-  stage: LeadStage;
+  /** Null when a sales agent may not see it (someone else's account). */
+  stage: LeadStage | null;
   /** True when the viewer may open the full lead (own lead, or any lead for an admin). */
   canOpen: boolean;
 }
@@ -42,7 +43,11 @@ function invalid(error: z.ZodError): ActionResult {
 }
 
 /** Turns a database error into a user-facing result (the functions raise readable messages). */
-function dbError(error: { message: string }): ActionResult {
+function dbError(error: { message: string; code?: string }): ActionResult {
+  // 23503: the segment is not in the Industries master (renamed or removed meanwhile).
+  if (error.code === "23503" && error.message.includes("industry")) {
+    return { ok: false, error: "Pick a segment from the list", fieldErrors: { industry: "Pick a segment from the list" } };
+  }
   return { ok: false, error: error.message || "Something went wrong. Please try again." };
 }
 
@@ -74,9 +79,9 @@ async function duplicatesFor(companyName: string, viewer: SessionUser, excludeId
   }));
 }
 
-/** Lead detail columns shared by create and edit, normalized; volume and deal value calculated. */
-function detailColumns(input: LeadFormValues) {
-  const deal = calculateDeal(dealInputsOf(input));
+/** Lead detail columns shared by create and edit, normalized; volume and deal value calculated with the masters. */
+function detailColumns(input: LeadFormValues, config: CalculatorConfig) {
+  const deal = calculateDeal(dealInputsOf(input), config);
   return {
     company_name: input.companyName.trim(),
     poc_name: input.pocName.trim(),
@@ -128,7 +133,7 @@ export async function createLead(raw: unknown): Promise<ActionResult> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_lead", {
     p: {
-      ...detailColumns(input),
+      ...detailColumns(input, await fetchAppConfig()),
       owner_id: ownerId,
       next_follow_up_at: followUpIso(input.nextFollowUpDate) ?? "",
     },
@@ -160,7 +165,7 @@ export async function updateLead(id: string, raw: unknown): Promise<ActionResult
 
   const supabase = await createClient();
   const closed = lead.stage === "won" || lead.stage === "lost";
-  const columns = detailColumns(input);
+  const columns = detailColumns(input, await fetchAppConfig());
   // Keep stored totals (e.g. a final value recorded when won) unless a calculator input changed.
   if (!dealInputsChanged(dealInputsOf({ ...lead, industry: lead.industry as LeadFormValues["industry"] }), dealInputsOf(input))) {
     columns.volume = lead.volume;
@@ -196,6 +201,7 @@ export async function changeStage(id: string, raw: unknown): Promise<ActionResul
     p_to: v.to,
     p_note: v.note,
     p_lost_reason: v.lostReason,
+    p_reason_id: v.reasonId,
     p_final_deal_value: v.finalDealValue,
   });
   return error ? dbError(error) : done(id);

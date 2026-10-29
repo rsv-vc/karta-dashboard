@@ -98,6 +98,8 @@ export function buildNewLead(input: LeadFormValues, opts: Actor & { id: string; 
     discoveryDate: null,
     discoveryMonth: null,
     sourceStatus: null,
+    dropReasonId: null,
+    dropNote: "",
     ownerId: opts.ownerId,
     createdAt: at,
     lastContactedAt: null,

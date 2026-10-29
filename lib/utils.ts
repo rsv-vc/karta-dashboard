@@ -55,6 +55,12 @@ export function formatMonth(monthKey: string): string {
   return format(parseISO(`${monthKey}-01`), "MMM yyyy");
 }
 
+/** A past event relative to TODAY: "Today", "Yesterday", "5 days ago". */
+export function formatDaysAgo(iso: string): string {
+  const n = daysBetween(iso, TODAY);
+  return n <= 0 ? "Today" : n === 1 ? "Yesterday" : `${n} days ago`;
+}
+
 /** Relative to TODAY: "Today", "In 3 days", "2 days overdue". */
 export function formatRelativeDays(iso: string): string {
   const diff = daysBetween(TODAY, iso);

@@ -124,8 +124,19 @@ test("admin rebalances it, exports CSV and deletes it", async ({ page }) => {
   expect(csv).toContain(COMPANY);
   expect(csv).toContain("Rohan Mehta");
 
+  // Marking it lost needs a reason from the list; the account page then shows it.
   await page.goto(leadPath);
   await settled(page);
+  await page.getByRole("button", { name: "Change stage" }).first().click();
+  await page.getByLabel("Mark as lost").check();
+  await page.getByRole("dialog").getByRole("button", { name: "Mark as lost" }).click();
+  await expect(page.getByText("Pick a reason from the list")).toBeVisible();
+  await pick(page, "Why was it lost?", "Chose another vendor");
+  await page.getByRole("dialog").getByRole("button", { name: "Mark as lost" }).click();
+  await expect(page.getByText("Moved to Lost")).toBeVisible();
+  await expect(page.getByText("Why it was lost")).toBeVisible();
+  await expect(page.getByText("Chose another vendor").first()).toBeVisible();
+
   await page.getByRole("button", { name: "Delete lead" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Delete lead" }).click();
   await page.waitForURL("**/leads");
@@ -133,9 +144,40 @@ test("admin rebalances it, exports CSV and deletes it", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Lead not found" })).toBeVisible();
 });
 
-test("phone: cards and the filter sheet @mobile", async ({ page }) => {
+test("agent: All leads shows company, contact and owner only", async ({ page }) => {
   await signInAs(page, "Priya Sharma");
   await page.goto("/leads");
+  await settled(page);
+  const headers = await page.getByRole("table").getByRole("columnheader").allInnerTexts();
+  expect(headers.map((h) => h.trim())).toEqual(["Company", "POC", "Owner"]);
+  await page.goto("/insights");
+  await page.waitForURL("**/no-access");
+  await page.goto("/masters");
+  await page.waitForURL("**/no-access");
+});
+
+test("admin: masters, investor view and notifications", async ({ page }) => {
+  await signInAs(page, "Admin User");
+  await page.goto("/masters?tab=industries");
+  await settled(page);
+  await expect(page.getByRole("tab", { name: "Industries", selected: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Edit Bank" })).toBeVisible();
+  await page.getByRole("tab", { name: "Drop-off reasons" }).click();
+  await expect(page).toHaveURL(/tab=reasons/);
+  await expect(page.getByText("Chose another vendor").first()).toBeVisible();
+
+  await page.goto("/insights");
+  await settled(page);
+  await expect(page.getByRole("heading", { name: "Funnels & drop-offs" })).toBeVisible();
+  await expect(page.getByText("POC → paid").first()).toBeVisible();
+
+  await page.getByRole("button", { name: /^Notifications/ }).click();
+  await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
+});
+
+test("phone: cards and the filter sheet @mobile", async ({ page }) => {
+  await signInAs(page, "Priya Sharma");
+  await page.goto("/my-leads");
   await settled(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(page.getByRole("table")).toBeHidden();

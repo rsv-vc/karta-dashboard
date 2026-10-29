@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { MisOverview } from "@/lib/dashboard/mis";
 import { BANDS, SCORE_CRITERIA, STAGE_POINTS } from "@/lib/scoring";
+import type { LeadStage } from "@/types/lead";
 import { cn, formatDate, formatINRShort, formatMonth, formatNumber } from "@/lib/utils";
 
 // Read-only sections of the home page, one per block of the workbook's
@@ -301,7 +302,8 @@ export function NextSteps({ o }: { o: MisOverview }) {
   );
 }
 
-export function ScoringGuide() {
+/** `points` = stage points from the Stages master. */
+export function ScoringGuide({ points: stagePoints = STAGE_POINTS }: { points?: Record<LeadStage, number> }) {
   return (
     <Card>
       <CardHeader>
@@ -312,7 +314,7 @@ export function ScoringGuide() {
         <div>
           <h3 className="mb-2 text-sm font-medium">Stage points</h3>
           <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
-            {(Object.entries(STAGE_POINTS) as [keyof typeof STAGE_POINTS, number][]).map(([stage, points]) => (
+            {(Object.entries(stagePoints) as [LeadStage, number][]).sort((a, b) => b[1] - a[1]).map(([stage, points]) => (
               <div key={stage} className="contents">
                 <dt>
                   <StageBadge stage={stage} />

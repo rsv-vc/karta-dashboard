@@ -87,6 +87,9 @@ export interface Lead {
   nextStep: string;
   /** Raw status from an imported source tracker (read only). */
   sourceStatus: string | null;
+  /** Why it was lost or deferred (Drop-off reasons master), with optional details. */
+  dropReasonId: number | null;
+  dropNote: string;
   /** References User.id of the owner (a sales agent or an admin). */
   ownerId: string;
   createdAt: string;
@@ -104,4 +107,5 @@ export interface Lead {
  * company. Sensitive fields (contact details, deal value, notes, activities)
  * must never reach those agents.
  */
-export type LeadDirectoryEntry = Pick<Lead, "id" | "companyName" | "pocName" | "ownerId" | "stage">;
+/** Stage is null for other people's accounts when the viewer is a sales agent. */
+export type LeadDirectoryEntry = Pick<Lead, "id" | "companyName" | "pocName" | "ownerId"> & { stage: LeadStage | null };

@@ -1,5 +1,9 @@
+"use client";
+
 import { CheckIcon, XCircleIcon } from "lucide-react";
-import { PIPELINE_ORDER, STAGE_LABELS } from "@/lib/constants";
+import { useAppConfig } from "@/components/config/config-provider";
+import { stageLabelsOf } from "@/lib/config";
+import { PIPELINE_ORDER } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { StageHistoryEntry } from "@/types/lead";
 
@@ -10,6 +14,7 @@ import type { StageHistoryEntry } from "@/types/lead";
  * A lost lead shows where it dropped out instead.
  */
 export function StageStepper({ history }: { history: StageHistoryEntry[] }) {
+  const labels = stageLabelsOf(useAppConfig());
   const current = history[history.length - 1].stage;
   const lost = current === "lost";
   const won = current === "won";
@@ -38,10 +43,10 @@ export function StageStepper({ history }: { history: StageHistoryEntry[] }) {
                     isCurrent && "border-primary bg-background text-primary ring-3 ring-primary/20",
                     !done && !isCurrent && "text-muted-foreground",
                   )}
-                  title={STAGE_LABELS[stage]}
+                  title={labels[stage]}
                 >
                   {done ? <CheckIcon className="size-3.5" /> : i + 1}
-                  <span className="sr-only">{STAGE_LABELS[stage]}</span>
+                  <span className="sr-only">{labels[stage]}</span>
                 </span>
                 <span
                   className={cn(
@@ -57,7 +62,7 @@ export function StageStepper({ history }: { history: StageHistoryEntry[] }) {
                   isCurrent ? "font-medium" : "text-muted-foreground",
                 )}
               >
-                {STAGE_LABELS[stage]}
+                {labels[stage]}
               </span>
             </li>
           );
@@ -65,13 +70,13 @@ export function StageStepper({ history }: { history: StageHistoryEntry[] }) {
       </ol>
       {!lost && (
         <p className="text-sm text-muted-foreground @[32rem]:hidden">
-          {won ? "Won" : `Step ${reachedIndex + 1} of ${PIPELINE_ORDER.length}: ${STAGE_LABELS[reached]}`}
+          {won ? "Won" : `Step ${reachedIndex + 1} of ${PIPELINE_ORDER.length}: ${labels[reached]}`}
         </p>
       )}
       {lost && (
         <p className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/50 dark:text-red-300">
           <XCircleIcon className="size-4 shrink-0" />
-          Lost at {STAGE_LABELS[reached]}
+          Lost at {labels[reached]}
         </p>
       )}
     </div>

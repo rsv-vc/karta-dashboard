@@ -1,6 +1,6 @@
 import { MIS_SOURCES, PIPELINE_ORDER, SOURCE_LABELS, STAGES, STAGE_LABELS, TODAY, isActiveStage } from "@/lib/constants";
 import { toDateKey } from "@/lib/dates";
-import { BANDS, leadBand, leadScore, type Band } from "@/lib/scoring";
+import { BANDS, STAGE_POINTS, leadBand, leadScore, type Band } from "@/lib/scoring";
 import type { Lead, LeadSource, LeadStage } from "@/types/lead";
 
 // The sales MIS home page (the workbook's Pipeline Overview and Monthly Funnel
@@ -94,9 +94,17 @@ export function discoveryHeld(lead: Lead): boolean {
 const share = (part: number, whole: number) => (whole > 0 ? part / whole : null);
 const average = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : null);
 
-export function computeMisOverview(leads: Lead[], { today = TODAY }: { today?: string } = {}): MisOverview {
+/** `points` and `labels` come from the Stages master (defaults: the seeded values). */
+export function computeMisOverview(
+  leads: Lead[],
+  {
+    today = TODAY,
+    points = STAGE_POINTS,
+    labels = STAGE_LABELS,
+  }: { today?: string; points?: Record<LeadStage, number>; labels?: Record<LeadStage, string> } = {},
+): MisOverview {
   const held = leads.filter(discoveryHeld);
-  const scored = leads.map((l) => ({ lead: l, score: leadScore(l), band: leadBand(l) }));
+  const scored = leads.map((l) => ({ lead: l, score: leadScore(l, points), band: leadBand(l, points) }));
 
   const funnelSteps: [string, (l: Lead) => boolean][] = [
     ["Discovery held", discoveryHeld],
@@ -133,7 +141,7 @@ export function computeMisOverview(leads: Lead[], { today = TODAY }: { today?: s
 
   const stages = STAGES.map((s): StageRow => {
     const inStage = scored.filter((x) => x.lead.stage === s.value);
-    return { stage: s.value, label: s.label, count: inStage.length, avgScore: average(inStage.map((x) => x.score)) };
+    return { stage: s.value, label: labels[s.value], count: inStage.length, avgScore: average(inStage.map((x) => x.score)) };
   });
 
   const segmentNames = [...new Set(leads.map((l) => l.industry).filter(Boolean))];

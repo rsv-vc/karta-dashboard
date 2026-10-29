@@ -16,6 +16,7 @@ import {
 } from "react-hook-form";
 import { toast } from "sonner";
 import { checkDuplicates, createLead, updateLead, type DuplicateMatch } from "@/app/(app)/leads/actions";
+import { useAppConfig } from "@/components/config/config-provider";
 import { StageBadge } from "@/components/shared/stage-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,11 +26,10 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { activeIndustries } from "@/lib/config";
 import {
-  CITIES,
   COMPANY_SIZES,
   COMPANY_SIZE_LABELS,
-  INDUSTRIES,
   PRIORITIES,
   PRIORITY_LABELS,
   SOURCES,
@@ -43,7 +43,6 @@ type Option = { value: string; label: string };
 const toOptions = (values: readonly string[], labels?: Record<string, string>): Option[] =>
   values.map((v) => ({ value: v, label: labels?.[v] ?? v }));
 
-const INDUSTRY_OPTIONS = toOptions(INDUSTRIES);
 const SIZE_OPTIONS = toOptions(COMPANY_SIZES, COMPANY_SIZE_LABELS);
 const SOURCE_OPTIONS = toOptions(SOURCES, SOURCE_LABELS);
 const PRIORITY_OPTIONS = toOptions(PRIORITIES, PRIORITY_LABELS);
@@ -72,6 +71,11 @@ export function LeadForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
+  const config = useAppConfig();
+  // Active industries from the masters, plus this account's own if it was retired since.
+  const industries = activeIndustries(config);
+  const current = defaultValues.industry;
+  const industryOptions = toOptions(current && !industries.includes(current) ? [...industries, current] : industries);
 
   const form = useForm<LeadFormValues>({
     resolver: zodResolver(mode === "create" ? createLeadSchema : leadFormSchema),
@@ -121,7 +125,7 @@ export function LeadForm({
           <DuplicateWarning matches={duplicates} control={control} error={formState.errors.duplicateAcknowledged?.message} />
         )}
         <div className="grid gap-4 sm:grid-cols-3">
-          <SelectField control={control} name="industry" label="Segment" options={INDUSTRY_OPTIONS} />
+          <SelectField control={control} name="industry" label="Segment" options={industryOptions} />
           <SelectField control={control} name="source" label="Lead source" options={SOURCE_OPTIONS} />
           {ownerOptions ? (
             <SelectField control={control} name="ownerId" label="Owner" options={ownerOptions} />
@@ -135,7 +139,7 @@ export function LeadForm({
           {ownerOptions && <SelectField control={control} name="priority" label="Priority" options={PRIORITY_OPTIONS} />}
         </div>
         <datalist id="city-options">
-          {CITIES.map((c) => (
+          {config.cities.map((c) => (
             <option key={c} value={c} />
           ))}
         </datalist>

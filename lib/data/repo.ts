@@ -2,6 +2,7 @@ import "server-only";
 import { connection } from "next/server";
 import { cache } from "react";
 import { DEFAULT_TARGET, type MonthlyTarget } from "@/data/mock-targets";
+import { DEFAULT_APP_CONFIG, type AppConfig } from "@/lib/config";
 import { toDirectoryEntryFromDb, toLead, type LeadDbRowWithRelations } from "@/lib/data/mappers";
 import { createClient } from "@/lib/supabase/server";
 import type { Lead, LeadDirectoryEntry } from "@/types/lead";
@@ -41,6 +42,54 @@ export const fetchTeam = cache(async (): Promise<Member[]> => {
     mustChangePassword: p.must_change_password,
     isDemo: p.is_demo,
   }));
+});
+
+/** The masters (industries, cities, pricing, stage names and points, drop-off reasons), readable by everyone. */
+export const fetchAppConfig = cache(async (): Promise<AppConfig> => {
+  await connection();
+  const supabase = await createClient();
+  const [industries, cities, settings, stages, reasons] = await Promise.all([
+    supabase.from("industries").select("*").order("position").order("name"),
+    supabase.from("cities").select("*").order("position").order("name"),
+    supabase.from("app_settings").select("price_per_minute, price_low, price_high, minutes_per_call, contract_months").single(),
+    supabase.from("stage_settings").select("*"),
+    supabase.from("drop_reasons").select("*").order("position").order("label"),
+  ]);
+  if (industries.error) fail("industries", industries.error);
+  if (cities.error) fail("cities", cities.error);
+  if (settings.error) fail("pricing", settings.error);
+  if (stages.error) fail("stages", stages.error);
+  if (reasons.error) fail("drop-off reasons", reasons.error);
+  const s = settings.data;
+  return {
+    industries: industries.data.map((i) => ({
+      name: i.name,
+      avgCallsPerMonth: i.avg_calls_per_month,
+      minutesPerCall: Number(i.minutes_per_call),
+      active: i.active,
+    })),
+    cities: cities.data.filter((c) => c.active).map((c) => c.name),
+    pricing: {
+      pricePerMinute: Number(s.price_per_minute),
+      priceLow: Number(s.price_low),
+      priceHigh: Number(s.price_high),
+      minutesPerCall: Number(s.minutes_per_call),
+      contractMonths: s.contract_months,
+    },
+    stages: {
+      ...DEFAULT_APP_CONFIG.stages,
+      ...Object.fromEntries(stages.data.map((r) => [r.stage, { label: r.label, points: r.points }])),
+    },
+    dropReasons: reasons.data.map((r) => ({ id: r.id, label: r.label, appliesTo: r.applies_to, active: r.active })),
+  };
+});
+
+/** When the signed-in person last opened their notifications (ISO), or null. */
+export const fetchNotificationsSeenAt = cache(async (userId: string): Promise<string | null> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("profiles").select("notifications_seen_at").eq("id", userId).single();
+  if (error) fail("notifications", error);
+  return data.notifications_seen_at;
 });
 
 /** Company domains and the outside emails allowed for agents (the list is admin-only under RLS). */

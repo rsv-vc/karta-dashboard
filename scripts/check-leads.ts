@@ -68,7 +68,7 @@ const leadRowKeys = Object.keys(rows[0]);
 const forbidden = ["pocEmail", "pocPhone", "pocLinkedIn", "notes", "activities", "stageHistory"];
 check("LeadRow has no contact/notes/history fields", forbidden.every((k) => !leadRowKeys.includes(k)));
 const dirKeys = Object.keys(toDirectoryRow(toDirectoryEntry(mockLeads[0]), U.priya, nameOf)).sort().join(",");
-check("DirectoryRow keys are exactly the masked set", dirKeys === "companyName,id,isMine,ownerId,ownerName,pocName,stage");
+check("DirectoryRow keys are exactly the masked set (no stage)", dirKeys === "companyName,id,isMine,ownerId,ownerName,pocName");
 
 if (failures > 0) {
   console.error(`\n${failures} check(s) failed`);

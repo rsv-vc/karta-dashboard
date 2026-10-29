@@ -1,6 +1,6 @@
-import { leadBand, leadScore, type Band } from "@/lib/scoring";
+import { STAGE_POINTS, leadBand, leadScore, type Band } from "@/lib/scoring";
 import type { NameOf } from "@/lib/team";
-import type { Lead, LeadDirectoryEntry } from "@/types/lead";
+import type { Lead, LeadDirectoryEntry, LeadStage } from "@/types/lead";
 
 // DTOs sent to Client Components. They carry only what list views render:
 // no contact details, notes, activities or stage history. The detail page
@@ -26,9 +26,11 @@ export type LeadRow = Pick<
   | "nextFollowUpAt"
 > & { ownerName: string; score: number; band: Band };
 
-export type DirectoryRow = LeadDirectoryEntry & { ownerName: string; isMine: boolean };
+/** What sales agents see of every account: company, contact and owner (no stage). */
+export type DirectoryRow = Omit<LeadDirectoryEntry, "stage"> & { ownerName: string; isMine: boolean };
 
-export function toLeadRow(lead: Lead, nameOf: NameOf): LeadRow {
+/** `points` = stage points from the Stages master. */
+export function toLeadRow(lead: Lead, nameOf: NameOf, points: Record<LeadStage, number> = STAGE_POINTS): LeadRow {
   return {
     id: lead.id,
     companyName: lead.companyName,
@@ -42,8 +44,8 @@ export function toLeadRow(lead: Lead, nameOf: NameOf): LeadRow {
     dealValue: lead.dealValue,
     volume: lead.volume,
     nextStep: lead.nextStep,
-    score: leadScore(lead),
-    band: leadBand(lead),
+    score: leadScore(lead, points),
+    band: leadBand(lead, points),
     ownerId: lead.ownerId,
     ownerName: nameOf(lead.ownerId),
     createdAt: lead.createdAt,
@@ -58,7 +60,6 @@ export function toDirectoryRow(entry: LeadDirectoryEntry, viewerId: string, name
     companyName: entry.companyName,
     pocName: entry.pocName,
     ownerId: entry.ownerId,
-    stage: entry.stage,
     ownerName: nameOf(entry.ownerId),
     isMine: entry.ownerId === viewerId,
   };

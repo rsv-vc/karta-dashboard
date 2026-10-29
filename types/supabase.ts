@@ -55,6 +55,8 @@ type LeadRow = {
   currency: string;
   deal_value: number;
   decision_access: number;
+  drop_note: string;
+  drop_reason_id: number | null;
   discovery_date: string | null;
   discovery_month: string | null;
   id: string;
@@ -100,12 +102,29 @@ type ProfileRow = {
   joined_at: string;
   must_change_password: boolean;
   name: string;
+  notifications_seen_at: string | null;
   role: Enums["app_role"];
   status: Enums["user_status"];
   title: string;
 };
 
-type MaskedLead = { company_name: string; id: string; owner_id: string; poc_name: string; stage: Enums["lead_stage"] };
+/** Stage is null for other people's accounts when the viewer is a sales agent. */
+type MaskedLead = { company_name: string; id: string; owner_id: string; poc_name: string; stage: Enums["lead_stage"] | null };
+
+type IndustryRow = { name: string; avg_calls_per_month: number | null; minutes_per_call: number; position: number; active: boolean };
+type CityRow = { name: string; position: number; active: boolean };
+type StageSettingRow = { stage: Enums["lead_stage"]; label: string; points: number };
+type DropReasonRow = { id: number; label: string; applies_to: "lost" | "deferred" | "both"; position: number; active: boolean };
+type SettingsRow = {
+  company_domains: string[];
+  id: boolean;
+  today: string | null;
+  price_per_minute: number;
+  price_low: number;
+  price_high: number;
+  minutes_per_call: number;
+  contract_months: number;
+};
 
 export type Database = {
   __InternalSupabase: {
@@ -120,9 +139,33 @@ export type Database = {
         Relationships: [Rel];
       };
       app_settings: {
-        Row: { company_domains: string[]; id: boolean; today: string | null };
-        Insert: { company_domains?: string[]; id?: boolean; today?: string | null };
-        Update: { company_domains?: string[]; id?: boolean; today?: string | null };
+        Row: SettingsRow;
+        Insert: Partial<SettingsRow>;
+        Update: Partial<SettingsRow>;
+        Relationships: [];
+      };
+      cities: {
+        Row: CityRow;
+        Insert: Partial<CityRow> & Pick<CityRow, "name">;
+        Update: Partial<CityRow>;
+        Relationships: [];
+      };
+      drop_reasons: {
+        Row: DropReasonRow;
+        Insert: Partial<Omit<DropReasonRow, "id">> & { label: string; id?: never };
+        Update: Partial<Omit<DropReasonRow, "id">> & { id?: never };
+        Relationships: [];
+      };
+      industries: {
+        Row: IndustryRow;
+        Insert: Partial<IndustryRow> & Pick<IndustryRow, "name">;
+        Update: Partial<IndustryRow>;
+        Relationships: [];
+      };
+      stage_settings: {
+        Row: StageSettingRow;
+        Insert: StageSettingRow;
+        Update: Partial<StageSettingRow>;
         Relationships: [];
       };
       funnel_actions: {
@@ -195,6 +238,7 @@ export type Database = {
           p_lead_id: string;
           p_lost_reason?: string;
           p_note?: string;
+          p_reason_id?: number;
           p_to: Enums["lead_stage"];
         };
         Returns: undefined;

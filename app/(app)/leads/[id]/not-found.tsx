@@ -16,7 +16,7 @@ export default function LeadNotFound() {
           <Link href="/leads">All leads</Link>
         </Button>
         <Button variant="outline" asChild>
-          <Link href="/leads/directory">Lead directory</Link>
+          <Link href="/leads">All leads</Link>
         </Button>
       </div>
     </div>

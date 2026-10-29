@@ -69,6 +69,8 @@ export function toLead(row: LeadDbRowWithRelations): Lead {
     discoveryMonth: row.discovery_month?.slice(0, 7) ?? null,
     nextStep: row.next_step,
     sourceStatus: row.source_status,
+    dropReasonId: row.drop_reason_id,
+    dropNote: row.drop_note,
     ownerId: row.owner_id,
     createdAt: toIst(row.created_at),
     lastContactedAt: toIstOrNull(row.last_contacted_at),

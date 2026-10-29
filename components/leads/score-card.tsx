@@ -1,15 +1,17 @@
 import { BandBadge } from "@/components/leads/band-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { STAGE_LABELS } from "@/lib/constants";
-import { BAND_BY_VALUE, SCORE_CRITERIA, SCORE_MAX, STAGE_POINTS, bandFor, leadScore } from "@/lib/scoring";
+import { stagePointsOf, type AppConfig } from "@/lib/config";
+import { BAND_BY_VALUE, SCORE_CRITERIA, SCORE_MAX, bandFor, leadScore } from "@/lib/scoring";
 import type { Lead } from "@/types/lead";
 
 /** The account's score out of 40, how it adds up, and the band's playbook. */
-export function ScoreCard({ lead }: { lead: Lead }) {
-  const score = leadScore(lead);
+export function ScoreCard({ lead, config }: { lead: Lead; config: Pick<AppConfig, "stages"> }) {
+  const points = stagePointsOf(config);
+  const score = leadScore(lead, points);
+  const maxStage = Math.max(...Object.values(points));
   const band = BAND_BY_VALUE[bandFor(score)];
   const parts = [
-    { label: `Stage (${STAGE_LABELS[lead.stage]})`, value: STAGE_POINTS[lead.stage], max: 15 },
+    { label: `Stage (${config.stages[lead.stage].label})`, value: points[lead.stage], max: maxStage },
     ...SCORE_CRITERIA.map((c) => ({ label: c.label, value: lead[c.key], max: c.max })),
   ];
 

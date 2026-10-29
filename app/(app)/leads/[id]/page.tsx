@@ -25,7 +25,8 @@ import { requireUser } from "@/lib/auth/dal";
 import { canDeleteLead } from "@/lib/auth/permissions";
 import { COMPANY_SIZE_LABELS, SOURCE_LABELS, isActiveStage } from "@/lib/constants";
 import { getLeadForViewer } from "@/lib/data/leads";
-import { fetchTeam } from "@/lib/data/repo";
+import { fetchAppConfig, fetchTeam } from "@/lib/data/repo";
+import { stagePointsOf, type AppConfig } from "@/lib/config";
 import { toDateKey } from "@/lib/dates";
 import { allowedNextStages } from "@/lib/leads/mutations";
 import { nameLookup, type NameOf } from "@/lib/team";
@@ -47,11 +48,11 @@ export default function LeadPage({ params }: PageProps<"/leads/[id]">) {
 
 async function LeadContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [user, visible, team] = await Promise.all([requireUser(), getLeadForViewer(id), fetchTeam()]);
+  const [user, visible, team, config] = await Promise.all([requireUser(), getLeadForViewer(id), fetchTeam(), fetchAppConfig()]);
   if (!visible) notFound();
   const nameOf = nameLookup(team);
   return visible.kind === "full" ? (
-    <FullLead lead={visible.lead} canDelete={canDeleteLead(user)} nameOf={nameOf} />
+    <FullLead lead={visible.lead} canDelete={canDeleteLead(user)} nameOf={nameOf} config={config} />
   ) : (
     <MaskedLead entry={visible.entry} nameOf={nameOf} />
   );
@@ -83,8 +84,10 @@ function MaskedLead({ entry, nameOf }: { entry: LeadDirectoryEntry; nameOf: Name
   );
 }
 
-function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean; nameOf: NameOf }) {
+function FullLead({ lead, canDelete, nameOf, config }: { lead: Lead; canDelete: boolean; nameOf: NameOf; config: AppConfig }) {
   const owner = nameOf(lead.ownerId);
+  const points = stagePointsOf(config);
+  const dropReason = config.dropReasons.find((r) => r.id === lead.dropReasonId)?.label;
   const allowed = allowedNextStages(lead.stage);
   const active = isActiveStage(lead.stage);
   const mainActions =
@@ -105,7 +108,7 @@ function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean;
         description={[lead.industry, lead.city, SOURCE_LABELS[lead.source]].filter(Boolean).join(" · ")}
         actions={
           <>
-            <BandBadge band={leadBand(lead)} score={leadScore(lead)} />
+            <BandBadge band={leadBand(lead, points)} score={leadScore(lead, points)} />
             <StageBadge stage={lead.stage} />
           </>
         }
@@ -159,8 +162,19 @@ function FullLead({ lead, canDelete, nameOf }: { lead: Lead; canDelete: boolean;
               </CardContent>
             </Card>
           )}
-          <ScoreCard lead={lead} />
-          <DealCard lead={lead} />
+          {(lead.stage === "lost" || lead.stage === "deferred") && dropReason && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{lead.stage === "lost" ? "Why it was lost" : "Why it is deferred"}</CardTitle>
+                <CardDescription>
+                  {dropReason}
+                  {lead.dropNote && <span className="mt-1 block">{lead.dropNote}</span>}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+          <ScoreCard lead={lead} config={config} />
+          <DealCard lead={lead} config={config} />
           <Card>
             <CardHeader>
               <CardTitle>Details</CardTitle>

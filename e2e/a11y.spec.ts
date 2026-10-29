@@ -14,11 +14,11 @@ interface Scan {
 
 const AGENT_PAGES: Scan[] = [
   { name: "dashboard", path: "/dashboard" },
-  { name: "my leads", path: "/leads" },
-  { name: "lead directory", path: "/leads/directory" },
+  { name: "my leads", path: "/my-leads" },
+  { name: "all leads (masked)", path: "/leads" },
   {
     name: "own lead + log activity dialog",
-    path: "/leads",
+    path: "/my-leads",
     open: async (page) => {
       await page.getByRole("table").getByRole("link").first().click();
       await page.waitForURL(/\/leads\/L-\d+$/);
@@ -35,6 +35,9 @@ const AGENT_PAGES: Scan[] = [
 const ADMIN_PAGES: Scan[] = [
   { name: "team overview", path: "/dashboard" },
   { name: "all leads", path: "/leads" },
+  { name: "my leads", path: "/my-leads" },
+  { name: "investor view", path: "/insights" },
+  { name: "masters", path: "/masters" },
   { name: "team", path: "/team" },
   {
     name: "team + add member dialog",

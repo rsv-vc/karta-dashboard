@@ -1,17 +1,11 @@
 "use client";
 
 import { useWatch, type Control, type FieldErrors, type UseFormRegister } from "react-hook-form";
+import { useAppConfig } from "@/components/config/config-provider";
 import { DealBreakdown } from "@/components/leads/deal-breakdown";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  DEFAULT_CONTRACT_MONTHS,
-  DEFAULT_MINUTES_PER_CALL,
-  DEFAULT_PRICE_PER_MINUTE,
-  PRICE_RANGE,
-  calculateDeal,
-  industryAverageFor,
-} from "@/lib/deal-calculator";
+import { calculateDeal, industryAverageFor } from "@/lib/deal-calculator";
 import type { LeadFormValues } from "@/lib/leads/schemas";
 import { formatNumber } from "@/lib/utils";
 
@@ -37,6 +31,8 @@ export function DealCalculatorFields({
     control,
     name: ["industry", "callsPerMonth", "minutesPerCall", "pricePerMinute", "contractMonths"],
   });
+  const config = useAppConfig();
+  const { pricing } = config;
   const clean = (n: number | null | undefined) => (typeof n === "number" && Number.isFinite(n) ? n : null);
   const deal = calculateDeal({
     segment: segment ?? "",
@@ -44,8 +40,9 @@ export function DealCalculatorFields({
     minutesPerCall: clean(minutesPerCall),
     pricePerMinute: clean(pricePerMinute),
     contractMonths: clean(contractMonths),
-  });
-  const industry = industryAverageFor(segment ?? "");
+  }, config);
+  const industry = industryAverageFor(segment ?? "", config);
+  const minutes = deal.defaults.minutes ? deal.minutesPerCall : pricing.minutesPerCall;
 
   const fields: { key: Key; label: string; placeholder: string; hint: string; step?: string }[] = [
     {
@@ -61,22 +58,22 @@ export function DealCalculatorFields({
     {
       key: "minutesPerCall",
       label: "Minutes a call",
-      placeholder: String(DEFAULT_MINUTES_PER_CALL),
-      hint: `Empty = ${DEFAULT_MINUTES_PER_CALL} minutes`,
+      placeholder: String(minutes),
+      hint: `Empty = ${minutes} minutes${industry ? ` (${industry.label})` : ""}`,
       step: "0.5",
     },
     {
       key: "pricePerMinute",
       label: "Price a minute (₹)",
-      placeholder: String(DEFAULT_PRICE_PER_MINUTE),
-      hint: `Empty = ₹${DEFAULT_PRICE_PER_MINUTE} (₹${PRICE_RANGE.low}–${PRICE_RANGE.high} range)`,
+      placeholder: String(pricing.pricePerMinute),
+      hint: `Empty = ₹${pricing.pricePerMinute} (₹${pricing.priceLow}–${pricing.priceHigh} range)`,
       step: "0.25",
     },
     {
       key: "contractMonths",
       label: "Contract (months)",
-      placeholder: String(DEFAULT_CONTRACT_MONTHS),
-      hint: `Empty = ${DEFAULT_CONTRACT_MONTHS} months`,
+      placeholder: String(pricing.contractMonths),
+      hint: `Empty = ${pricing.contractMonths} months`,
     },
   ];
 

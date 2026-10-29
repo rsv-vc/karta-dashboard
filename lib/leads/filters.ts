@@ -1,4 +1,4 @@
-import { INDUSTRIES, PRIORITIES, SOURCES, STAGES, TODAY, isActiveStage } from "@/lib/constants";
+import { PRIORITIES, SOURCES, STAGES, TODAY, isActiveStage } from "@/lib/constants";
 import { toDateKey } from "@/lib/dates";
 import { BANDS, type Band } from "@/lib/scoring";
 import { normalizeCompanyName } from "@/lib/selectors";
@@ -45,8 +45,8 @@ export const DEFAULT_FILTERS: LeadFilters = {
 };
 
 /** The subset of row fields filtering needs; LeadRow and DirectoryRow both satisfy the core of it. */
-export type FilterableRow = Pick<Lead, "companyName" | "pocName" | "stage" | "ownerId"> &
-  Partial<Pick<Lead, "city" | "priority" | "source" | "nextFollowUpAt" | "industry">> & { band?: Band };
+export type FilterableRow = Pick<Lead, "companyName" | "pocName" | "ownerId"> &
+  Partial<Pick<Lead, "stage" | "city" | "priority" | "source" | "nextFollowUpAt" | "industry">> & { band?: Band };
 
 type ParamSource = URLSearchParams | Record<string, string | string[] | undefined>;
 
@@ -67,7 +67,7 @@ function readList<T extends string>(params: ParamSource, key: string, allowed: r
   return allowed.filter((v) => picked.has(v));
 }
 
-/** Owner ids are not a fixed enum, so keep any non-empty, deduplicated id. */
+/** Owner ids and segments (from the masters) are not fixed enums: keep any non-empty, deduplicated value. */
 function readIds(params: ParamSource, key: string): string[] {
   const raw = readParam(params, key);
   return raw ? [...new Set(raw.split(",").filter(Boolean))] : [];
@@ -80,7 +80,7 @@ export function parseLeadFilters(params: ParamSource): LeadFilters {
     stages: readList(params, "stage", STAGE_VALUES),
     priorities: readList(params, "priority", PRIORITIES),
     bands: readList(params, "band", BAND_VALUES),
-    segments: readList(params, "segment", INDUSTRIES),
+    segments: readIds(params, "segment"),
     sources: readList(params, "source", SOURCES),
     owners: readIds(params, "owner"),
     followUp: readList(params, "followUp", FOLLOW_UP_BUCKETS),
@@ -142,7 +142,7 @@ type Facet = FacetKey | "status" | "q";
 /** True if the row passes every filter except `skip` (used for faceted counts). */
 function passes(row: FilterableRow, f: LeadFilters, skip?: Facet): boolean {
   if (skip !== "q" && !matchesSearch(row, f.q)) return false;
-  if (skip !== "stages" && f.stages.length && !f.stages.includes(row.stage)) return false;
+  if (skip !== "stages" && f.stages.length && (!row.stage || !f.stages.includes(row.stage))) return false;
   if (skip !== "priorities" && f.priorities.length && (!row.priority || !f.priorities.includes(row.priority))) {
     return false;
   }
@@ -152,7 +152,7 @@ function passes(row: FilterableRow, f: LeadFilters, skip?: Facet): boolean {
   if (skip !== "owners" && f.owners.length && !f.owners.includes(row.ownerId)) return false;
   if (skip !== "followUp" && f.followUp.length && !f.followUp.includes(followUpBucket(row))) return false;
   if (skip !== "status" && f.status !== "all") {
-    const active = isActiveStage(row.stage);
+    const active = row.stage !== undefined && isActiveStage(row.stage);
     if ((f.status === "active") !== active) return false;
   }
   return true;

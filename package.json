@@ -17,6 +17,7 @@
     "check:accounts": "tsx scripts/check-accounts.ts",
     "check:home": "tsx scripts/check-home.ts",
     "check:deal": "tsx scripts/check-deal.ts",
+    "check:insights": "tsx scripts/check-insights.ts",
     "db:seed": "tsx --env-file=.env.test.local scripts/seed-supabase.mts",
     "check:rls": "tsx --env-file=.env.test.local scripts/check-rls.mts",
     "check:secrets": "node --env-file-if-exists=.env.local scripts/check-secrets.mjs",

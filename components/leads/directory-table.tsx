@@ -8,25 +8,20 @@ import { UserAvatar } from "@/components/auth/user-avatar";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
-import { FacetedFilter, type FacetOption } from "@/components/data-table/faceted-filter";
+import { FacetedFilter } from "@/components/data-table/faceted-filter";
 import { FilterSheet } from "@/components/data-table/filter-sheet";
 import { SearchInput } from "@/components/data-table/search-input";
 import { useListUrlState } from "@/components/data-table/use-list-url-state";
 import { DirectoryCardList } from "@/components/leads/lead-cards";
-import { StageBadge } from "@/components/shared/stage-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { STAGES } from "@/lib/constants";
 import { DEFAULT_FILTERS, facetCounts, facetSelectionCount, filterLeadRows, hasActiveFilters } from "@/lib/leads/filters";
 import type { DirectoryRow } from "@/lib/leads/rows";
 import { appTableFeatures, type AppTableFeatures } from "@/lib/table/features";
-import type { LeadStage } from "@/types/lead";
 
 const helper = createColumnHelper<AppTableFeatures, DirectoryRow>();
-const STAGE_RANK = Object.fromEntries(STAGES.map((s, i) => [s.value, i]));
 const DEFAULT_SORT: SortingState = [{ id: "company", desc: false }];
-const SORTABLE_IDS = ["company", "owner", "stage"] as const;
-const STAGE_OPTIONS: FacetOption<LeadStage>[] = STAGES.map((s) => ({ value: s.value, label: s.label, dotClass: s.dotClass }));
+const SORTABLE_IDS = ["company", "owner"] as const;
 
 // Only the viewer's own rows link anywhere; everyone else's are read-only entries.
 const columns = helper.columns([
@@ -56,19 +51,13 @@ const columns = helper.columns([
     ),
     sortFn: "text",
   }),
-  helper.accessor((r) => STAGE_RANK[r.stage], {
-    id: "stage",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Stage" />,
-    cell: ({ row }) => <StageBadge stage={row.original.stage} />,
-    sortFn: "basic",
-  }),
 ]);
 
 function resolve<T>(updater: Updater<T>, current: T): T {
   return typeof updater === "function" ? (updater as (old: T) => T)(current) : updater;
 }
 
-/** Masked, team-wide list of who is working which company. */
+/** All leads for a sales agent: who is working which company (company, POC and owner only). */
 export function DirectoryTable({ rows, ownerOptions }: { rows: DirectoryRow[]; ownerOptions: { id: string; name: string }[] }) {
   const { filters, sorting, pagination, setFilters, setSorting, setPagination } = useListUrlState({
     defaultSort: DEFAULT_SORT,
@@ -109,13 +98,6 @@ export function DirectoryTable({ rows, ownerOptions }: { rows: DirectoryRow[]; o
   const facets = (
     <>
       <FacetedFilter
-        title="Stage"
-        options={STAGE_OPTIONS}
-        selected={filters.stages}
-        counts={facetCounts(rows, filters, "stages")}
-        onChange={(stages) => setFilters({ ...filters, stages })}
-      />
-      <FacetedFilter
         title="Owner"
         options={ownerOptions.map((o) => ({ value: o.id, label: o.name }))}
         selected={filters.owners}
@@ -129,8 +111,8 @@ export function DirectoryTable({ rows, ownerOptions }: { rows: DirectoryRow[]; o
     <div className="flex flex-col gap-3">
       <div className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
         <InfoIcon className="mt-0.5 size-4 shrink-0" />
-        Contact details and deal values are only visible to the lead owner. Search here before adding a lead to avoid
-        chasing a company a teammate is already working.
+        You see the company, contact and owner of every account. Your own accounts, in full, are under My leads. Search
+        here before adding a lead to avoid chasing a company a teammate is already working.
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -156,7 +138,7 @@ export function DirectoryTable({ rows, ownerOptions }: { rows: DirectoryRow[]; o
 
       <DataTable
         className="hidden md:block"
-        label="Lead directory"
+        label="All leads"
         table={table}
         getRowHref={(row) => (row.isMine ? `/leads/${row.id}` : null)}
         emptyState={noMatches}

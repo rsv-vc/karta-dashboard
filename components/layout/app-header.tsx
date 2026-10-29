@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Fragment } from "react";
 import { useUser } from "@/components/auth/user-provider";
 import { CommandMenu } from "@/components/layout/command-menu";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
   Breadcrumb,
@@ -20,9 +21,10 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { canCreateLead } from "@/lib/auth/permissions";
 import { getBreadcrumbs } from "@/lib/navigation";
+import type { NotificationFeed } from "@/lib/notifications";
 
-/** Sticky top bar: sidebar toggle, breadcrumbs, search, "Add lead" and theme toggle. */
-export function AppHeader() {
+/** Sticky top bar: sidebar toggle, breadcrumbs, search, "Add lead", notifications and theme toggle. */
+export function AppHeader({ notifications }: { notifications: NotificationFeed }) {
   const user = useUser();
   const pathname = usePathname();
   const crumbs = getBreadcrumbs(pathname, user.role);
@@ -64,6 +66,7 @@ export function AppHeader() {
             </Link>
           </Button>
         )}
+        <NotificationBell feed={notifications} />
         <ThemeToggle />
       </div>
     </header>
