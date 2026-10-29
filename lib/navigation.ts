@@ -106,7 +106,7 @@ export const NAV_ITEMS: Record<NavKey, NavItem> = {
     label: "Team",
     roles: ["admin"],
     phase: 7,
-    description: "Agent performance, leaderboard and workload.",
+    description: "Sales agents and employees: workload, targets, lead allocation and access.",
   },
   reports: {
     key: "reports",

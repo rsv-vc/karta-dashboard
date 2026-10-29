@@ -14,6 +14,7 @@ import {
   activeOwners,
   addMemberSchema,
   allowedEmailSchema,
+  emailDomain,
   generateTempPassword,
   isEmailAllowed,
 } from "@/lib/team";
@@ -190,6 +191,12 @@ export async function addAllowedEmail(raw: unknown): Promise<TeamActionResult> {
   if (!caller) return { ok: false, error: "Only admins can allow emails" };
   const parsed = allowedEmailSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message, fieldErrors: { email: parsed.error.issues[0].message } };
+
+  const { companyDomains } = await fetchAccessRules();
+  if (companyDomains.includes(emailDomain(parsed.data))) {
+    const message = "Company addresses are always allowed: add them with Add sales agent";
+    return { ok: false, error: message, fieldErrors: { email: message } };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.from("allowed_emails").insert({ email: parsed.data, added_by: caller.id });

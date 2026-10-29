@@ -34,11 +34,15 @@ export function AddMemberDialog({
   companyDomains,
   disabled,
   defaultRole = "sales_agent",
+  label = "Add member",
+  variant = "outline",
 }: {
   companyDomains: string[];
   disabled: boolean;
   /** The member type picked when the dialog opens. */
   defaultRole?: Role;
+  label?: string;
+  variant?: "default" | "outline";
 }) {
   const empty: AddMemberValues = { ...EMPTY, role: defaultRole };
   const [open, setOpen] = useState(false);
@@ -83,9 +87,9 @@ export function AddMemberDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline" disabled={disabled}>
+        <Button variant={variant} disabled={disabled}>
           <UserPlusIcon />
-          Add member
+          {label}
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -93,8 +97,8 @@ export function AddMemberDialog({
           <DialogTitle>{created ? "Member added" : "Add member"}</DialogTitle>
           <DialogDescription>
             {created
-              ? "Give them these details to sign in."
-              : "Creates their account with a temporary password. No email is sent."}
+              ? "Share these with them. At first sign-in they choose their own password; this one stops working."
+              : "Creates their account with a temporary password for you to share. No email is sent."}
           </DialogDescription>
         </DialogHeader>
 

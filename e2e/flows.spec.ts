@@ -101,20 +101,23 @@ test("agent moves it forward, logs a call and reschedules", async ({ page }) => 
   await expect(page.getByText(`${COMPANY}: follow-up moved to`)).toBeVisible();
 });
 
-test("admin rebalances it, exports CSV and deletes it", async ({ page }) => {
+test("admin allocates it, exports CSV and deletes it", async ({ page }) => {
   await signInAs(page, "Admin User");
   await page.goto("/team");
   await settled(page);
 
-  await page.getByRole("button", { name: "Rebalance leads" }).click();
+  // Sales agents get their own section with a card each.
+  await expect(page.getByRole("heading", { name: /^Sales agents/ })).toBeVisible();
+  await page.getByRole("button", { name: "Allocate leads", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("From", { exact: true }).click();
-  await page.getByRole("option", { name: /Priya Sharma/ }).click();
-  await dialog.getByLabel("To", { exact: true }).click();
+  await dialog.getByLabel("Allocate to").click();
   await page.getByRole("option", { name: "Rohan Mehta" }).click();
-  await dialog.getByText(COMPANY).click();
-  await dialog.getByRole("button", { name: /Move 1 lead to Rohan Mehta/ }).click();
-  await expect(page.getByText("Moved 1 lead to Rohan Mehta")).toBeVisible();
+  await dialog.getByLabel("Currently with").click();
+  await page.getByRole("option", { name: /Priya Sharma/ }).click();
+  await dialog.getByRole("textbox", { name: "Search accounts" }).fill(COMPANY);
+  await dialog.getByRole("checkbox", { name: COMPANY }).check();
+  await dialog.getByRole("button", { name: "Allocate 1 account to Rohan Mehta" }).click();
+  await expect(page.getByText("Allocated 1 account to Rohan Mehta")).toBeVisible();
 
   await page.goto(`/leads?q=${encodeURIComponent(COMPANY)}`);
   await settled(page);

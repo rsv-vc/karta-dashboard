@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { allowedEmailSchema } from "@/lib/team";
+import { allowedEmailSchema, emailDomain } from "@/lib/team";
 
 /** Outside addresses (not on a company domain) that may be used for sales agent accounts. */
 export function AllowedEmailsCard({ companyDomains, allowedEmails }: { companyDomains: string[]; allowedEmails: string[] }) {
@@ -51,8 +51,8 @@ export function AllowedEmailsCard({ companyDomains, allowedEmails }: { companyDo
       <CardHeader>
         <CardTitle>Allowed outside emails</CardTitle>
         <CardDescription>
-          Company addresses ({companyDomains.map((d) => `@${d}`).join(", ")}) are always allowed. Add outsourced
-          agents&apos; own addresses here before creating their accounts.
+          Only for sales agents without a company address. Company addresses ({companyDomains.map((d) => `@${d}`).join(", ")})
+          never need adding here: create them straight away with Add sales agent.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -83,7 +83,12 @@ export function AllowedEmailsCard({ companyDomains, allowedEmails }: { companyDo
           <ul className="divide-y rounded-lg border">
             {allowedEmails.map((address) => (
               <li key={address} className="flex items-center justify-between gap-2 py-1 pr-1 pl-3">
-                <span className="truncate text-sm">{address}</span>
+                <span className="min-w-0 truncate text-sm">
+                  {address}
+                  {companyDomains.includes(emailDomain(address)) && (
+                    <span className="block text-xs text-muted-foreground">Company address: not needed here</span>
+                  )}
+                </span>
                 <Button
                   variant="ghost"
                   size="icon"

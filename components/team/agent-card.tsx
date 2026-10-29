@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { UserAvatar } from "@/components/auth/user-avatar";
 import { TargetMeter } from "@/components/dashboard/target-meter";
+import { AllocateButton } from "@/components/team/allocate-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import type { TeamMember } from "@/lib/data/leads";
+import { MEMBER_TYPE_LABELS } from "@/lib/team";
 import { cn, formatDate, formatINRShort } from "@/lib/utils";
 
-/** One agent's month at a glance: targets, workload and shortcuts to their lists. */
+/** One team member's month at a glance (sales agent or employee): targets, workload and shortcuts. */
 export function AgentCard({ member }: { member: TeamMember }) {
   const { kpis, target } = member.dashboard;
   const stats = [
@@ -21,7 +24,11 @@ export function AgentCard({ member }: { member: TeamMember }) {
       <CardHeader className="flex flex-row items-center gap-3">
         <UserAvatar name={member.name} className="size-10" />
         <div className="min-w-0">
-          <div className="truncate font-medium">{member.name}</div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="truncate font-medium">{member.name}</span>
+            <Badge variant={member.role === "sales_agent" ? "secondary" : "default"}>{MEMBER_TYPE_LABELS[member.role]}</Badge>
+            {member.mustChangePassword && <Badge variant="outline">Temporary password</Badge>}
+          </div>
           <div className="truncate text-xs text-muted-foreground">
             {member.email} · joined {formatDate(member.joinedAt)}
           </div>
@@ -39,7 +46,10 @@ export function AgentCard({ member }: { member: TeamMember }) {
         <TargetMeter label={`Won in ${target.monthLabel}`} actual={target.wonValue.actual} target={target.wonValue.target} format={formatINRShort} />
         <TargetMeter label={`New leads in ${target.monthLabel}`} actual={target.newLeads.actual} target={target.newLeads.target} format={String} />
       </CardContent>
-      <CardFooter className="gap-2">
+      <CardFooter className="flex-wrap gap-2">
+        <AllocateButton toId={member.id} variant="outline" size="sm">
+          Allocate
+        </AllocateButton>
         <Button asChild variant="outline" size="sm">
           <Link href={`/leads?owner=${member.id}`}>View leads</Link>
         </Button>

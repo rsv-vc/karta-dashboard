@@ -29,7 +29,7 @@ import { getFollowUpsDue } from "@/lib/selectors";
 import { isAdminApiConfigured } from "@/lib/supabase/admin";
 import { activeOwners, nameLookup } from "@/lib/team";
 import type { Lead, LeadDirectoryEntry, LeadStage } from "@/types/lead";
-import type { Member } from "@/types/user";
+import type { Member, Role } from "@/types/user";
 
 // Scoped lead access for pages and Server Actions. Each getter resolves the
 // current user itself, and the database's Row Level Security limits what each
@@ -172,6 +172,10 @@ export interface TeamMember {
   id: string;
   name: string;
   email: string;
+  role: Role;
+  title: string;
+  /** Still on the temporary password they were given. */
+  mustChangePassword: boolean;
   joinedAt: string;
   dashboard: AgentDashboard;
   stale: number;
@@ -213,8 +217,8 @@ export async function getTeamPageData(): Promise<TeamPageData> {
     fetchTeam(),
     fetchAccessRules(),
   ]);
-  // Sales agents, plus any admin who owns accounts (e.g. the Head of Growth).
-  const agents = activeOwners(team).filter((m) => m.role === "sales_agent" || leads.some((l) => l.ownerId === m.id));
+  // Everyone active: sales agents and employees each get a card (employees can bring leads too).
+  const agents = activeOwners(team);
   const isStaleLead = (l: Lead) => daysBetween(l.lastContactedAt ?? l.createdAt, TODAY) >= STALE_AFTER_DAYS;
 
   const members = agents.map((a) => {
@@ -223,6 +227,9 @@ export async function getTeamPageData(): Promise<TeamPageData> {
       id: a.id,
       name: a.name,
       email: a.email,
+      role: a.role,
+      title: a.title,
+      mustChangePassword: a.mustChangePassword,
       joinedAt: a.joinedAt,
       dashboard: computeAgentDashboard(own, { today: TODAY, target: targetFor(a.id) }),
       stale: own.filter((l) => isActiveStage(l.stage) && isStaleLead(l)).length,

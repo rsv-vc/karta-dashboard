@@ -40,6 +40,14 @@ const ADMIN_PAGES: Scan[] = [
   { name: "masters", path: "/masters" },
   { name: "team", path: "/team" },
   {
+    name: "team + allocate leads dialog",
+    path: "/team",
+    open: async (page) => {
+      await page.getByRole("button", { name: "Allocate leads", exact: true }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+    },
+  },
+  {
     name: "team + add member dialog",
     path: "/team",
     open: async (page) => {
