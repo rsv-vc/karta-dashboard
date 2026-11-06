@@ -214,6 +214,16 @@ export function LeadForm({
             min={TODAY}
           />
         </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <TextField
+            register={register}
+            errors={formState.errors}
+            name="discoveryDate"
+            label="Discovery held on (optional)"
+            type="date"
+            max={TODAY}
+          />
+        </div>
         <Field data-invalid={Boolean(formState.errors.notes)}>
           <FieldLabel htmlFor="notes">Notes</FieldLabel>
           <Textarea id="notes" rows={3} placeholder="Context for whoever picks this up next" {...register("notes")} />
@@ -256,6 +266,7 @@ function TextField({
   type = "text",
   placeholder,
   min,
+  max,
   list,
 }: {
   register: UseFormRegister<LeadFormValues>;
@@ -265,6 +276,7 @@ function TextField({
   type?: string;
   placeholder?: string;
   min?: string;
+  max?: string;
   /** id of a <datalist> of suggestions. */
   list?: string;
 }) {
@@ -272,7 +284,7 @@ function TextField({
   return (
     <Field data-invalid={Boolean(error)}>
       <FieldLabel htmlFor={name}>{label}</FieldLabel>
-      <Input id={name} type={type} placeholder={placeholder} min={min} list={list} aria-invalid={Boolean(error)} {...register(name)} />
+      <Input id={name} type={type} placeholder={placeholder} min={min} max={max} list={list} aria-invalid={Boolean(error)} {...register(name)} />
       <FieldError errors={[error]} />
     </Field>
   );

@@ -13,7 +13,7 @@ const byOwner: Record<string, { total: number; won: number; lost: number }> = {}
 for (const l of mockLeads) {
   const o = (byOwner[l.ownerId] ??= { total: 0, won: 0, lost: 0 });
   o.total++;
-  if (l.stage === "won") o.won++;
+  if (l.stage === "revenue_generation" || l.stage === "agreement_executed") o.won++;
   if (l.stage === "lost") o.lost++;
 }
 console.log("owners", byOwner);

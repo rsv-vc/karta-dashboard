@@ -5,16 +5,13 @@ import type { Lead, LeadStage } from "@/types/lead";
 // decision access + timing/budget, out of 40.
 
 export const STAGE_POINTS: Record<LeadStage, number> = {
-  won: 15,
-  poc_ongoing: 14,
-  poc_approved: 13,
-  poc_pitched: 12,
-  technical_round: 11,
-  follow_up: 9,
-  discovery_done: 5,
-  deferred: 3,
-  no_show: 2,
-  not_met: 1,
+  revenue_generation: 15,
+  agreement_executed: 15,
+  poc_live: 14,
+  poc_integration: 13,
+  poc_accepted: 12,
+  product_demo: 9,
+  intro_discovery: 5,
   lost: 0,
 };
 

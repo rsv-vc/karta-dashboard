@@ -25,30 +25,30 @@ const rows = mockLeads.map((l) => toLeadRow(l, nameOf));
 const withFilters = (patch: Partial<LeadFilters>): LeadFilters => ({ ...DEFAULT_FILTERS, ...patch });
 
 // URL round-trips.
-const sample = withFilters({ q: "zenith", stages: ["not_met", "won"], owners: [U.priya], followUp: ["overdue"], status: "active" });
+const sample = withFilters({ q: "zenith", stages: ["intro_discovery", "revenue_generation"], owners: [U.priya], followUp: ["overdue"], status: "active" });
 const roundTrip = parseLeadFilters(serializeLeadFilters(sample));
 check("parse(serialize(f)) round-trips", JSON.stringify(roundTrip) === JSON.stringify(sample));
 check("default filters serialize to an empty query", serializeLeadFilters(DEFAULT_FILTERS).toString() === "");
-const junk = parseLeadFilters(new URLSearchParams("stage=won,banana&priority=urgent&status=weird&followUp=today"));
-check("unknown values are dropped", junk.stages.join() === "won" && junk.priorities.length === 0 && junk.status === "all");
+const junk = parseLeadFilters(new URLSearchParams("stage=revenue_generation,banana&priority=urgent&status=weird&followUp=today"));
+check("unknown values are dropped", junk.stages.join() === "revenue_generation" && junk.priorities.length === 0 && junk.status === "all");
 check("followUp parses", junk.followUp.join() === "today");
-check("record params parse too", parseLeadFilters({ stage: ["follow_up"], q: " x " }).stages.join() === "follow_up");
+check("record params parse too", parseLeadFilters({ stage: ["product_demo"], q: " x " }).stages.join() === "product_demo");
 
 // Filtering.
 const zenith = filterLeadRows(rows, withFilters({ q: "zenith retail pvt" }));
 check(`"zenith retail pvt" finds both Zenith leads (${zenith.length})`, zenith.length === 2);
 const counts = getStageCounts(mockLeads);
-check("stage=won returns every won lead", filterLeadRows(rows, withFilters({ stages: ["won"] })).length === counts.won);
+check("stage=revenue_generation returns every such lead", filterLeadRows(rows, withFilters({ stages: ["revenue_generation"] })).length === counts.revenue_generation);
 const active = filterLeadRows(rows, withFilters({ status: "active" })).length;
 const closed = filterLeadRows(rows, withFilters({ status: "closed" })).length;
-check("active + closed = all", active + closed === rows.length && closed === counts.won + counts.lost);
+check("active + closed = all", active + closed === rows.length && closed === counts.agreement_executed + counts.revenue_generation + counts.lost);
 const overdue = filterLeadRows(rows, withFilters({ followUp: ["overdue"] })).length;
 check("followUp=overdue matches getFollowUpsDue", overdue === getFollowUpsDue().overdue.length);
 const priyaOverdue = filterLeadRows(rows, withFilters({ owners: [U.priya], followUp: ["overdue"] })).length;
 check(`Priya overdue = ${priyaOverdue}`, priyaOverdue === getFollowUpsDue(U.priya).overdue.length);
 
 // Facets: counts ignore their own facet but respect the others.
-const stageFacet = facetCounts(rows, withFilters({ stages: ["won"] }), "stages");
+const stageFacet = facetCounts(rows, withFilters({ stages: ["revenue_generation"] }), "stages");
 check("stage facet ignores the stage filter", JSON.stringify(stageFacet) === JSON.stringify(facetCounts(rows, DEFAULT_FILTERS, "stages")));
 const allStages = Object.entries(counts).every(([stage, n]) => (stageFacet[stage] ?? 0) === n);
 check("stage facet equals getStageCounts", allStages);

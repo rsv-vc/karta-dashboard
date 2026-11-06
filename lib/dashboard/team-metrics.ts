@@ -1,5 +1,5 @@
 import type { MonthlyTarget } from "@/data/mock-targets";
-import { PIPELINE_ORDER, SOURCES, SOURCE_LABELS, STAGE_LABELS, isActiveStage } from "@/lib/constants";
+import { PIPELINE_ORDER, SOURCES, SOURCE_LABELS, STAGE_LABELS, isActiveStage, isWonStage, isWorkableStage } from "@/lib/constants";
 import { daysBetween, fromDayNumber, toDateKey, toDayNumber } from "@/lib/dates";
 import { STALE_AFTER_DAYS } from "@/lib/dashboard/agent-metrics";
 import { getMonthlySummary } from "@/lib/selectors";
@@ -88,7 +88,7 @@ const sum = (leads: Lead[]) => leads.reduce((t, l) => t + l.dealValue, 0);
 const rate = (won: number, lost: number) => (won + lost > 0 ? won / (won + lost) : null);
 
 function isOverdue(lead: Lead, today: string): boolean {
-  return isActiveStage(lead.stage) && lead.nextFollowUpAt !== null && toDateKey(lead.nextFollowUpAt) < today;
+  return isWorkableStage(lead.stage) && lead.nextFollowUpAt !== null && toDateKey(lead.nextFollowUpAt) < today;
 }
 
 function isStale(lead: Lead, today: string): boolean {
@@ -98,7 +98,7 @@ function isStale(lead: Lead, today: string): boolean {
 /** Won/lost counts and won value for leads closed since `start`. */
 function closedStats(leads: Lead[], start: string | null) {
   const closed = leads.filter((l) => inPeriod(l.closedAt, start));
-  const won = closed.filter((l) => l.stage === "won");
+  const won = closed.filter((l) => isWonStage(l.stage));
   return { won: won.length, lost: closed.length - won.length, wonValue: sum(won) };
 }
 
@@ -112,7 +112,7 @@ export function computeTeamDashboard(
   const active = leads.filter((l) => isActiveStage(l.stage));
   const start = periodStart(period, today);
   const ninety = closedStats(leads, periodStart("90d", today));
-  const thisMonthClosed = leads.filter((l) => l.stage === "won" && l.closedAt?.startsWith(monthKey));
+  const thisMonthClosed = leads.filter((l) => isWonStage(l.stage) && l.closedAt?.startsWith(monthKey));
 
   // "Reached" = got to this stage or any later one (accounts can skip steps).
   const funnel: FunnelStep[] = PIPELINE_ORDER.map((stage, i) => ({

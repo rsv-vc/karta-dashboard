@@ -4,9 +4,9 @@ import { z } from "zod";
 // each a problem, its fix, an owner, a due date and a status.
 
 export const FUNNELS = {
-  1: "Discovery → follow-up",
-  2: "Follow-up → bot test / POC",
-  3: "POC → paid",
+  1: "Discovery → product demo",
+  2: "Product demo → POC accepted",
+  3: "POC accepted → agreement",
 } as const;
 
 export const ACTION_STATUSES = ["open", "started", "scheduled", "pending_approval", "under_review", "done"] as const;

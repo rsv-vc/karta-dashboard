@@ -23,7 +23,7 @@ const counts = getStageCounts(mockLeads);
 // Funnel.
 check("funnel starts with every lead", all.funnel[0].reached === mockLeads.length);
 check("funnel never increases", all.funnel.every((s, i) => i === 0 || s.reached <= all.funnel[i - 1].reached));
-check("funnel won = won leads", all.funnel.at(-1)!.reached === counts.won);
+check("funnel end = revenue accounts", all.funnel.at(-1)!.reached === counts.revenue_generation);
 check("lost total", all.lostTotal === counts.lost);
 console.log("   funnel:", all.funnel.map((s) => `${s.label} ${s.reached}${s.conversion === null ? "" : ` (${Math.round(s.conversion * 100)}%)`}`).join(" → "));
 
@@ -35,7 +35,7 @@ check("KPIs do not depend on the period", JSON.stringify(all.kpis) === JSON.stri
 // Leaderboard.
 check("leaderboard has 4 agents", all.leaderboard.length === 4);
 check("Σ active = team open count", all.leaderboard.reduce((s, r) => s + r.active, 0) === activeCount);
-const totalWon = mockLeads.filter((l) => l.stage === "won").reduce((s, l) => s + l.dealValue, 0);
+const totalWon = mockLeads.filter((l) => l.stage === "revenue_generation").reduce((s, l) => s + l.dealValue, 0);
 check("Σ won value (all time) = total won", all.leaderboard.reduce((s, r) => s + r.wonValue, 0) === totalWon);
 check("leaderboard sorted by won value", all.leaderboard.every((r, i, a) => i === 0 || a[i - 1].wonValue >= r.wonValue));
 console.log("   leaderboard:", all.leaderboard.map((r) => `${r.name} ₹${r.wonValue / 1e5}L`).join(", "));

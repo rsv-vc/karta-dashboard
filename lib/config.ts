@@ -28,12 +28,9 @@ export interface StageConfigEntry {
   points: number;
 }
 
-export type DropReasonScope = "lost" | "deferred" | "both";
-
 export interface DropReason {
   id: number;
   label: string;
-  appliesTo: DropReasonScope;
   active: boolean;
 }
 
@@ -71,9 +68,9 @@ export const stageLabelsOf = (config: Pick<AppConfig, "stages">) =>
 export const stagePointsOf = (config: Pick<AppConfig, "stages">) =>
   Object.fromEntries(Object.entries(config.stages).map(([k, v]) => [k, v.points])) as Record<LeadStage, number>;
 
-/** Reasons offered when moving an account to `to` (Lost or Deferred). */
-export function reasonsFor(config: Pick<AppConfig, "dropReasons">, to: "lost" | "deferred"): DropReason[] {
-  return config.dropReasons.filter((r) => r.active && (r.appliesTo === "both" || r.appliesTo === to));
+/** Reasons offered when moving an account to Lost / Deprioritised. */
+export function activeReasons(config: Pick<AppConfig, "dropReasons">): DropReason[] {
+  return config.dropReasons.filter((r) => r.active);
 }
 
 export const activeIndustries = (config: Pick<AppConfig, "industries">) => config.industries.filter((i) => i.active).map((i) => i.name);

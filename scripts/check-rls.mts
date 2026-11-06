@@ -78,7 +78,7 @@ const myLead = own.data![0].id;
 const steal = await priya.from("leads").update({ owner_id: ROHAN }).eq("id", myLead).select("id");
 check("Priya cannot change the owner of her own lead", Boolean(steal.error) || steal.data!.length === 0, steal.error?.message);
 
-const jump = await priya.from("leads").update({ stage: "won" }).eq("id", myLead).select("id");
+const jump = await priya.from("leads").update({ stage: "revenue_generation" }).eq("id", myLead).select("id");
 check("Priya cannot set a stage directly (must use change_lead_stage)", Boolean(jump.error), jump.error?.message);
 
 const del = await priya.from("leads").delete().eq("id", myLead).select("id");
@@ -92,9 +92,9 @@ check("Priya cannot insert activities directly", Boolean(fakeActivity.error));
 const reassign = await priya.rpc("reassign_leads", { p_lead_ids: [myLead], p_to: ROHAN });
 check("Priya cannot call reassign_leads()", Boolean(reassign.error));
 
-const closed = await priya.from("leads").select("id").in("stage", ["won", "lost"]).limit(1).single();
-const moveClosed = await priya.rpc("change_lead_stage", { p_lead_id: closed.data!.id, p_to: "lost", p_lost_reason: "Testing" });
-check("change_lead_stage rejects a closed lead", Boolean(moveClosed.error), moveClosed.error?.message);
+const closed = await priya.from("leads").select("id").eq("stage", "revenue_generation").limit(1).single();
+const moveClosed = await priya.rpc("change_lead_stage", { p_lead_id: closed.data!.id, p_to: "lost", p_reason_id: 1, p_lost_reason: "Testing" });
+check("change_lead_stage rejects moving a revenue account", Boolean(moveClosed.error), moveClosed.error?.message);
 
 // The full lifecycle on a temporary lead --------------------------------------------
 const created = await admin.rpc("create_lead", {
@@ -119,27 +119,36 @@ const unknownIndustry = await admin.rpc("create_lead", { p: { company_name: "RLS
 check("An industry outside the Industries master is refused", Boolean(unknownIndustry.error), unknownIndustry.error?.message);
 check(`Admin creates a lead for Priya (${tempId})`, !created.error && /^L-\d+$/.test(tempId), created.error?.message);
 
-const step = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "discovery_done", p_note: "First call done" });
-check("Priya moves her account not met → discovery done", !step.error, step.error?.message);
-const back = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "not_met" });
+const step = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "poc_accepted", p_note: "POC agreed" });
+check("Priya moves her account Intro/Discovery → POC accepted (skipping is allowed)", !step.error, step.error?.message);
+const back = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "product_demo" });
 check("change_lead_stage refuses a backwards move", Boolean(back.error), back.error?.message);
-const noShow = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "no_show" });
-check("…and No-show after discovery", Boolean(noShow.error), noShow.error?.message);
 const hist = await priya.from("lead_stage_history").select("stage, end_at").eq("lead_id", tempId).order("start_at");
-check("…and history has not met (closed) + discovery done (current)", hist.data?.map((h) => `${h.stage}:${h.end_at ? "ended" : "current"}`).join() === "not_met:ended,discovery_done:current");
+check("…and history has intro (closed) + POC accepted (current)", hist.data?.map((h) => `${h.stage}:${h.end_at ? "ended" : "current"}`).join() === "intro_discovery:ended,poc_accepted:current");
 const dated = await priya.from("leads").select("discovery_date, discovery_month").eq("id", tempId).single();
-check("…and the first discovery dates the account", Boolean(dated.data?.discovery_date) && Boolean(dated.data?.discovery_month), dated.data);
+check("…and moving past stage 1 dates the discovery", Boolean(dated.data?.discovery_date) && Boolean(dated.data?.discovery_month), dated.data);
 
-const noReason = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "deferred", p_note: "Later" });
-check("Deferring needs a reason from the list", /Pick a reason/.test(noReason.error?.message ?? ""), noReason.error?.message);
-const lostOnly = await priya.from("drop_reasons").select("id").eq("applies_to", "lost").limit(1).single();
-const wrongReason = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "deferred", p_reason_id: lostOnly.data!.id });
-check("…and a lost-only reason is refused for Deferred", Boolean(wrongReason.error), wrongReason.error?.message);
-const anyReason = await priya.from("drop_reasons").select("id, label").eq("applies_to", "both").limit(1).single();
-const deferred = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "deferred", p_reason_id: anyReason.data!.id, p_lost_reason: "Budget in April" });
-check("Priya defers it with a reason", !deferred.error, deferred.error?.message);
-const why = await priya.from("leads").select("drop_reason_id, drop_note").eq("id", tempId).single();
-check("…and the reason and details are stored", why.data?.drop_reason_id === anyReason.data!.id && why.data?.drop_note === "Budget in April", why.data);
+const noReason = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "lost", p_note: "Later" });
+check("Lost / Deprioritised needs a reason from the list", /Pick a reason/.test(noReason.error?.message ?? ""), noReason.error?.message);
+const anyReason = await priya.from("drop_reasons").select("id, label").eq("active", true).limit(1).single();
+const dropped = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "lost", p_reason_id: anyReason.data!.id, p_lost_reason: "Budget in April" });
+check("Priya drops it with a reason", !dropped.error, dropped.error?.message);
+const why = await priya.from("leads").select("drop_reason_id, drop_note, closed_at").eq("id", tempId).single();
+check("…and the reason and details are stored, and it is closed", why.data?.drop_reason_id === anyReason.data!.id && why.data?.drop_note === "Budget in April" && Boolean(why.data?.closed_at), why.data);
+const reconnect = await priya.rpc("log_activity", { p_lead_id: tempId, p_type: "note", p_description: "Reconnect in April", p_date: why.data!.closed_at!.slice(0, 10) });
+check("…it can still take activities", !reconnect.error, reconnect.error?.message);
+const reopen = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "poc_live" });
+check("Priya re-opens it", !reopen.error, reopen.error?.message);
+const reopened = await priya.from("leads").select("drop_reason_id, closed_at").eq("id", tempId).single();
+check("…which clears the reason and the closed date", reopened.data?.drop_reason_id === null && reopened.data?.closed_at === null, reopened.data);
+const agreed = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "agreement_executed", p_final_deal_value: 2_400_000 });
+const signed = await priya.from("leads").select("closed_at, deal_value").eq("id", tempId).single();
+check("Agreement executed is a win: closed date and final value", !agreed.error && Boolean(signed.data?.closed_at) && signed.data?.deal_value === 2_400_000, agreed.error?.message);
+const paying = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "revenue_generation" });
+const paid = await priya.from("leads").select("closed_at").eq("id", tempId).single();
+check("Revenue generation keeps the win date", !paying.error && paid.data?.closed_at === signed.data?.closed_at, paying.error?.message);
+const backAgain = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "lost", p_reason_id: anyReason.data!.id });
+check("…and is final", Boolean(backAgain.error), backAgain.error?.message);
 const agentMaster = await priya.from("drop_reasons").insert({ label: "Agents cannot add this" }).select("id");
 check("An agent cannot add to the masters", Boolean(agentMaster.error) || agentMaster.data!.length === 0, agentMaster.error?.message);
 const agentPrice = await priya.from("app_settings").update({ price_per_minute: 1 }).eq("id", true).select("id");

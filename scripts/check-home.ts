@@ -23,7 +23,7 @@ check(
   o.bands.every((b) => Object.values(b.bySource).reduce((n, v) => n + v, 0) === b.total),
 );
 check("source totals add up to tracked", Object.values(o.bandTotalsBySource).reduce((n, v) => n + v, 0) === o.tracked);
-check("open deal value sums open accounts", o.openDealValue === mockLeads.filter((l) => !["won", "lost"].includes(l.stage)).reduce((n, l) => n + l.dealValue, 0));
+check("open deal value sums open accounts", o.openDealValue === mockLeads.filter((l) => !["agreement_executed", "revenue_generation", "lost"].includes(l.stage)).reduce((n, l) => n + l.dealValue, 0));
 check("hot + warm tile = hot + warm bands", o.hotWarm === o.bands.filter((b) => b.band === "hot" || b.band === "warm").reduce((n, b) => n + b.total, 0));
 check("stages add up to tracked", o.stages.reduce((n, s) => n + s.count, 0) === o.tracked);
 check("segments add up to tracked", o.segments.reduce((n, s) => n + s.count, 0) === o.tracked);
@@ -31,14 +31,14 @@ check(
   "every discovery held belongs to a discovery month",
   o.months.reduce((n, m) => n + m.discoveries, 0) === mockLeads.filter((l) => discoveryHeld(l) && l.discoveryMonth).length,
 );
-check("month columns: follow-up+ ≥ bot/tech+ ≥ POC+", o.months.every((m) => m.followUpPlus >= m.technicalPlus && m.technicalPlus >= m.pocPlus));
+check("month columns: demo+ ≥ POC accepted+ ≥ POC live+ ≥ won", o.months.every((m) => m.demoPlus >= m.pocPlus && m.pocPlus >= m.livePlus && m.livePlus >= m.wonPlus));
 check("next steps sorted soonest first", o.nextSteps.every((n, i) => i === 0 || n.date >= o.nextSteps[i - 1].date));
 check("overdue flags match today", o.nextSteps.every((n) => n.overdue === n.date < TODAY));
 
 // Scoring edges.
 check("score 30 is Hot, 29 Warm, 20 Warm, 19 Nurture, 9 Inactive", [30, 29, 20, 19, 9].map(bandFor).join() === "hot,warm,warm,nurture,inactive");
 check("bands are ordered by minimum", BANDS.every((b, i) => i === 0 || b.min < BANDS[i - 1].min));
-check("maximum score is 40", leadScore({ stage: "won", responsiveness: 10, decisionAccess: 10, timingBudget: 5 }) === 40);
+check("maximum score is 40", leadScore({ stage: "revenue_generation", responsiveness: 10, decisionAccess: 10, timingBudget: 5 }) === 40);
 check("inputs are clamped", leadScore({ stage: "lost", responsiveness: 99, decisionAccess: -3, timingBudget: 8 }) === 15);
 
 const empty = computeMisOverview([], { today: TODAY });

@@ -1,5 +1,5 @@
 import { mockLeads } from "@/data/mock-leads";
-import { PIPELINE_ORDER, STAGES, TODAY, isActiveStage } from "@/lib/constants";
+import { PIPELINE_ORDER, STAGES, TODAY, isActiveStage, isWonStage, isWorkableStage } from "@/lib/constants";
 import { lastDayOfMonth, toDateKey, toMonthKey } from "@/lib/dates";
 import type { Lead, LeadDirectoryEntry, LeadStage } from "@/types/lead";
 
@@ -78,13 +78,18 @@ export function reachedStageInMonth(lead: Lead, stage: LeadStage, monthKey: stri
   return first !== undefined && first.startDate.startsWith(monthKey);
 }
 
+/** The first discovery meeting was held this month: its date, else the first move past stage 1. */
+export function discoveryHeldInMonth(lead: Lead, monthKey: string): boolean {
+  return lead.discoveryDate ? lead.discoveryDate.startsWith(monthKey) : reachedStageInMonth(lead, "product_demo", monthKey);
+}
+
 function summarizeMonth(year: number, month: number, leads: Lead[]): MonthlySummaryRow {
   const key = toMonthKey(year, month);
   const monthEnd = lastDayOfMonth(year, month);
   const cutoff = monthEnd < TODAY ? monthEnd : TODAY;
 
   const closedInMonth = leads.filter((l) => l.closedAt?.startsWith(key));
-  const wonLeads = closedInMonth.filter((l) => l.stage === "won");
+  const wonLeads = closedInMonth.filter((l) => isWonStage(l.stage));
   const lost = closedInMonth.length - wonLeads.length;
 
   const pipelineValue = leads
@@ -99,8 +104,8 @@ function summarizeMonth(year: number, month: number, leads: Lead[]): MonthlySumm
     month,
     key,
     newLeads: leads.filter((l) => l.createdAt.startsWith(key)).length,
-    discoveries: leads.filter((l) => reachedStageInMonth(l, "discovery_done", key)).length,
-    pocs: leads.filter((l) => reachedStageInMonth(l, "poc_pitched", key)).length,
+    discoveries: leads.filter((l) => discoveryHeldInMonth(l, key)).length,
+    pocs: leads.filter((l) => reachedStageInMonth(l, "poc_accepted", key)).length,
     won: wonLeads.length,
     lost,
     wonValue: wonLeads.reduce((sum, l) => sum + l.dealValue, 0),
@@ -141,7 +146,7 @@ export interface FollowUpsDue {
 export function getFollowUpsDue(ownerId?: string, date: string = TODAY, leads: Lead[] = mockLeads): FollowUpsDue {
   const result: FollowUpsDue = { overdue: [], today: [], upcoming: [] };
   const withFollowUp = leads
-    .filter((l) => isActiveStage(l.stage) && l.nextFollowUpAt !== null)
+    .filter((l) => isWorkableStage(l.stage) && l.nextFollowUpAt !== null)
     .filter((l) => !ownerId || l.ownerId === ownerId)
     .sort((a, b) => a.nextFollowUpAt!.localeCompare(b.nextFollowUpAt!));
 

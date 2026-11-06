@@ -195,9 +195,7 @@ export function FunnelCard({ f, openFixes }: { f: FunnelInsight; openFixes: numb
           </div>
           <div>
             <dt className="text-muted-foreground">Dropped here</dt>
-            <dd className="font-medium">
-              {f.lost} lost · {f.deferred} deferred
-            </dd>
+            <dd className="font-medium">{f.dropped} lost or deprioritised</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Fixes in progress</dt>
@@ -220,33 +218,24 @@ export function FunnelCard({ f, openFixes }: { f: FunnelInsight; openFixes: numb
 export function DeadLeads({ insights }: { insights: Insights }) {
   const maxStage = Math.max(1, ...insights.lostAtStage.map((s) => s.count));
   return (
-    <div className="grid gap-6 *:min-w-0 xl:grid-cols-3">
+    <div className="grid gap-6 *:min-w-0 xl:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Dead leads: why we lost</CardTitle>
-          <CardDescription>Every account marked Lost, by reason, with the deal value lost.</CardDescription>
+          <CardTitle>Lost / Deprioritised: why</CardTitle>
+          <CardDescription>Every account at this stage, by reason, with its deal value.</CardDescription>
         </CardHeader>
         <CardContent>
-          <ReasonBars reasons={insights.lostReasons} empty="No lost accounts." />
+          <ReasonBars reasons={insights.lostReasons} empty="No lost or deprioritised accounts." />
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Deferred: why it is later</CardTitle>
-          <CardDescription>Accounts parked for now, by reason. These are the ones to revisit.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ReasonBars reasons={insights.deferredReasons} empty="No deferred accounts." />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Where lost accounts got to</CardTitle>
-          <CardDescription>The furthest stage each lost account reached.</CardDescription>
+          <CardTitle>How far they got</CardTitle>
+          <CardDescription>The furthest stage each lost or deprioritised account reached.</CardDescription>
         </CardHeader>
         <CardContent>
           {insights.lostAtStage.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No lost accounts.</p>
+            <p className="text-sm text-muted-foreground">No lost or deprioritised accounts.</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {insights.lostAtStage.map((s) => (
@@ -284,11 +273,11 @@ export function CohortTable({ rows }: { rows: Insights["cohorts"] }) {
               <TableRow>
                 <TableHead>Discovery month</TableHead>
                 <TableHead className="text-right">Discoveries</TableHead>
-                <TableHead className="text-right">Follow-up+</TableHead>
-                <TableHead className="text-right">Bot / tech+</TableHead>
-                <TableHead className="text-right">POC+</TableHead>
+                <TableHead className="text-right">Product demo+</TableHead>
+                <TableHead className="text-right">POC accepted+</TableHead>
+                <TableHead className="text-right">POC live+</TableHead>
                 <TableHead className="text-right">Won</TableHead>
-                <TableHead className="text-right">Deferred / lost</TableHead>
+                <TableHead className="text-right">Lost / Deprioritised</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -296,9 +285,9 @@ export function CohortTable({ rows }: { rows: Insights["cohorts"] }) {
                 <TableRow key={r.month}>
                   <TableCell className="whitespace-nowrap">{formatMonth(r.month)}</TableCell>
                   <TableCell className={cn(NUM, "font-medium")}>{r.discoveries}</TableCell>
-                  <TableCell className={NUM}>{pct(r.followUp)}</TableCell>
-                  <TableCell className={NUM}>{pct(r.technical)}</TableCell>
+                  <TableCell className={NUM}>{pct(r.demo)}</TableCell>
                   <TableCell className={NUM}>{pct(r.poc)}</TableCell>
+                  <TableCell className={NUM}>{pct(r.live)}</TableCell>
                   <TableCell className={NUM}>{pct(r.won)}</TableCell>
                   <TableCell className={NUM}>{pct(r.dropped)}</TableCell>
                 </TableRow>

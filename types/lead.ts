@@ -1,15 +1,12 @@
 /** The Karta sales stages (the MIS workbook's Scoring Guide). */
 export type LeadStage =
-  | "not_met"
-  | "no_show"
-  | "discovery_done"
-  | "follow_up"
-  | "technical_round"
-  | "poc_pitched"
-  | "poc_approved"
-  | "poc_ongoing"
-  | "won"
-  | "deferred"
+  | "intro_discovery"
+  | "product_demo"
+  | "poc_accepted"
+  | "poc_integration"
+  | "poc_live"
+  | "agreement_executed"
+  | "revenue_generation"
   | "lost";
 
 export type LeadSource =

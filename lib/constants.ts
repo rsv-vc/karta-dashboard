@@ -38,19 +38,16 @@ const stage = (value: LeadStage, label: string, color: string, badgeClass: strin
   chartColor: color,
 });
 
-/** Every stage in display order: the main path, then the exits. */
+/** Every stage in display order: the investors' pipeline, then the exit. */
 export const STAGES: readonly StageConfig[] = [
-  stage("not_met", "Not met yet", "#64748b", "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200", "bg-slate-500"),
-  stage("discovery_done", "Discovery done", "#3b82f6", "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300", "bg-blue-500"),
-  stage("follow_up", "Follow-up / deep dive", "#06b6d4", "bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300", "bg-cyan-500"),
-  stage("technical_round", "Bot / technical round", "#6366f1", "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300", "bg-indigo-500"),
-  stage("poc_pitched", "POC pitched", "#8b5cf6", "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300", "bg-violet-500"),
-  stage("poc_approved", "POC approved", "#d946ef", "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-950 dark:text-fuchsia-300", "bg-fuchsia-500"),
-  stage("poc_ongoing", "POC ongoing", "#f59e0b", "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300", "bg-amber-500"),
-  stage("won", "Won", "#22c55e", "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300", "bg-green-500"),
-  stage("no_show", "No-show", "#78716c", "bg-stone-200 text-stone-800 dark:bg-stone-800 dark:text-stone-200", "bg-stone-500"),
-  stage("deferred", "Deferred", "#f97316", "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300", "bg-orange-500"),
-  stage("lost", "Lost", "#ef4444", "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300", "bg-red-500"),
+  stage("intro_discovery", "Intro/Discovery", "#3b82f6", "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300", "bg-blue-500"),
+  stage("product_demo", "Product demo", "#06b6d4", "bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300", "bg-cyan-500"),
+  stage("poc_accepted", "POC accepted", "#8b5cf6", "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300", "bg-violet-500"),
+  stage("poc_integration", "POC integration", "#d946ef", "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-950 dark:text-fuchsia-300", "bg-fuchsia-500"),
+  stage("poc_live", "POC live", "#f59e0b", "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300", "bg-amber-500"),
+  stage("agreement_executed", "Agreement executed", "#14b8a6", "bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300", "bg-teal-500"),
+  stage("revenue_generation", "Revenue generation", "#22c55e", "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300", "bg-green-500"),
+  stage("lost", "Lost / Deprioritised", "#ef4444", "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300", "bg-red-500"),
 ];
 
 export const STAGE_BY_VALUE = Object.fromEntries(STAGES.map((s) => [s.value, s])) as Record<
@@ -60,66 +57,65 @@ export const STAGE_BY_VALUE = Object.fromEntries(STAGES.map((s) => [s.value, s])
 
 /** Every stage value, for zod enums and parsing. */
 export const STAGE_VALUES = [
-  "not_met",
-  "discovery_done",
-  "follow_up",
-  "technical_round",
-  "poc_pitched",
-  "poc_approved",
-  "poc_ongoing",
-  "won",
-  "no_show",
-  "deferred",
+  "intro_discovery",
+  "product_demo",
+  "poc_accepted",
+  "poc_integration",
+  "poc_live",
+  "agreement_executed",
+  "revenue_generation",
   "lost",
 ] as const satisfies readonly LeadStage[];
 
 /** The main path an account moves along (skipping steps is allowed). */
 export const PIPELINE_ORDER: readonly LeadStage[] = [
-  "not_met",
-  "discovery_done",
-  "follow_up",
-  "technical_round",
-  "poc_pitched",
-  "poc_approved",
-  "poc_ongoing",
-  "won",
+  "intro_discovery",
+  "product_demo",
+  "poc_accepted",
+  "poc_integration",
+  "poc_live",
+  "agreement_executed",
+  "revenue_generation",
 ];
 
-/** Open stages: the account can still move. Deferred and No-show can re-open. */
+/** Open pipeline: not yet won or dropped. */
 export const ACTIVE_STAGES: readonly LeadStage[] = [
-  "not_met",
-  "no_show",
-  "discovery_done",
-  "follow_up",
-  "technical_round",
-  "poc_pitched",
-  "poc_approved",
-  "poc_ongoing",
-  "deferred",
+  "intro_discovery",
+  "product_demo",
+  "poc_accepted",
+  "poc_integration",
+  "poc_live",
 ];
 
-export const CLOSED_STAGES: readonly LeadStage[] = ["won", "lost"];
+/** A won deal: its closedAt is the date it was first won. */
+export const WON_STAGES: readonly LeadStage[] = ["agreement_executed", "revenue_generation"];
 
 export function isActiveStage(stage: LeadStage): boolean {
   return ACTIVE_STAGES.includes(stage);
 }
 
-/**
- * Stage moves (mirrors private.can_move_stage in the database): forward along
- * the main path, No-show only before discovery, Deferred and Lost from any open
- * stage, No-show and Deferred re-open onto the main path, Won and Lost final.
- */
-export function canMoveStage(from: LeadStage, to: LeadStage): boolean {
-  if (from === "won" || from === "lost" || from === to) return false;
-  if (to === "lost" || to === "deferred") return true;
-  if (to === "no_show") return from === "not_met";
-  if (from === "no_show" || from === "deferred") return true;
-  return PIPELINE_ORDER.indexOf(to) > PIPELINE_ORDER.indexOf(from);
+export function isWonStage(stage: LeadStage): boolean {
+  return WON_STAGES.includes(stage);
 }
 
-/** Has the account held its first discovery meeting? (Counts toward the funnel.) */
-export function isPastDiscovery(stage: LeadStage): boolean {
-  return PIPELINE_ORDER.indexOf(stage) >= PIPELINE_ORDER.indexOf("discovery_done");
+/**
+ * Still being worked: takes activities and follow-up dates. Everything except
+ * Revenue generation, including Lost / Deprioritised (a date to reconnect) and
+ * Agreement executed (the steps to first revenue).
+ */
+export function isWorkableStage(stage: LeadStage): boolean {
+  return stage !== "revenue_generation";
+}
+
+/**
+ * Stage moves (mirrors private.can_move_stage in the database): forward along
+ * the main path, Lost / Deprioritised from any stage before Revenue generation,
+ * and from there back onto the main path. Revenue generation is final.
+ */
+export function canMoveStage(from: LeadStage, to: LeadStage): boolean {
+  if (from === "revenue_generation" || from === to) return false;
+  if (to === "lost" || from === "lost") return true;
+  return PIPELINE_ORDER.indexOf(to) > PIPELINE_ORDER.indexOf(from);
 }
 
 export const STAGE_LABELS = Object.fromEntries(STAGES.map((s) => [s.value, s.label])) as Record<LeadStage, string>;

@@ -20,20 +20,19 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { reasonsFor, stageLabelsOf } from "@/lib/config";
+import { activeReasons, stageLabelsOf } from "@/lib/config";
+import { isWonStage } from "@/lib/constants";
 import { changeStageSchema, toFieldErrors } from "@/lib/leads/schemas";
 import type { LeadStage } from "@/types/lead";
 
 /** What picking this stage means, in words. */
 function optionLabel(current: LeadStage, stage: LeadStage, labels: Record<LeadStage, string>): string {
-  if (stage === "lost") return "Mark as lost";
-  if (stage === "deferred") return "Defer (interested, later)";
-  if (stage === "no_show") return "Mark as no-show (missed the discovery)";
-  if (current === "deferred" || current === "no_show") return `Re-open at ${labels[stage]}`;
+  if (stage === "lost") return `Mark as ${labels.lost}`;
+  if (current === "lost") return `Re-open at ${labels[stage]}`;
   return `Advance to ${labels[stage]}`;
 }
 
-/** Move a lead forward, or defer it / mark it lost with a reason from the list. */
+/** Move an account forward, re-open it, or mark it Lost / Deprioritised with a reason from the list. */
 export function ChangeStageDialog({
   leadId,
   current,
@@ -55,15 +54,11 @@ export function ChangeStageDialog({
   const [finalDealValue, setFinalDealValue] = useState(String(dealValue));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
-  const dropping = to === "lost" || to === "deferred";
-  const reasons = dropping ? reasonsFor(config, to) : [];
+  const dropping = to === "lost";
+  const reasons = activeReasons(config);
 
   function pick(stage: LeadStage) {
     setTo(stage);
-    // A reason picked for Lost may not apply to Deferred (and the other way round).
-    if ((stage === "lost" || stage === "deferred") && !reasonsFor(config, stage).some((r) => String(r.id) === reasonId)) {
-      setReasonId("");
-    }
     setErrors({});
   }
 
@@ -73,7 +68,7 @@ export function ChangeStageDialog({
       note,
       lostReason: dropping ? lostReason : "",
       reasonId: dropping && reasonId ? Number(reasonId) : undefined,
-      finalDealValue: to === "won" && finalDealValue ? Number(finalDealValue) : undefined,
+      finalDealValue: isWonStage(to) && finalDealValue ? Number(finalDealValue) : undefined,
     };
     const parsed = changeStageSchema.safeParse(values);
     if (!parsed.success) {
@@ -108,7 +103,7 @@ export function ChangeStageDialog({
         <DialogHeader>
           <DialogTitle>Change stage</DialogTitle>
           <DialogDescription>
-            Currently {labels[current]}. Move forward (skipping steps is fine), defer it, or mark it lost.
+            Currently {labels[current]}. {current === "lost" ? "Re-open it at any stage." : `Move forward (skipping steps is fine), or mark it ${labels.lost}.`}
           </DialogDescription>
         </DialogHeader>
         <FieldGroup>
@@ -126,7 +121,7 @@ export function ChangeStageDialog({
           {dropping ? (
             <>
               <Field data-invalid={Boolean(errors.reasonId)}>
-                <FieldLabel htmlFor="dropReason">{to === "lost" ? "Why was it lost?" : "Why is it deferred?"}</FieldLabel>
+                <FieldLabel htmlFor="dropReason">Why is it lost or deprioritised?</FieldLabel>
                 <Select value={reasonId} onValueChange={setReasonId}>
                   <SelectTrigger id="dropReason" aria-invalid={Boolean(errors.reasonId)} className="w-full">
                     <SelectValue placeholder="Pick a reason" />
@@ -148,7 +143,7 @@ export function ChangeStageDialog({
                   rows={2}
                   value={lostReason}
                   onChange={(e) => setLostReason(e.target.value)}
-                  placeholder={to === "lost" ? "Went with a competitor on price" : "Revisit after their budget cycle in April"}
+                  placeholder="Went with a competitor on price; revisit after their budget cycle in April"
                 />
                 <FieldError>{errors.lostReason}</FieldError>
               </Field>
@@ -161,7 +156,7 @@ export function ChangeStageDialog({
             </Field>
           )}
 
-          {to === "won" && (
+          {isWonStage(to) && (
             <Field data-invalid={Boolean(errors.finalDealValue)}>
               <FieldLabel htmlFor="finalDealValue">Final deal value (₹)</FieldLabel>
               <Input id="finalDealValue" type="number" inputMode="numeric" value={finalDealValue} onChange={(e) => setFinalDealValue(e.target.value)} />
@@ -173,9 +168,9 @@ export function ChangeStageDialog({
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={pending} variant={to === "lost" ? "destructive" : "default"}>
+          <Button onClick={submit} disabled={pending} variant={dropping ? "destructive" : "default"}>
             {pending && <LoaderIcon className="animate-spin" />}
-            {to === "lost" ? "Mark as lost" : `Move to ${labels[to]}`}
+            {dropping ? `Mark as ${labels.lost}` : `Move to ${labels[to]}`}
           </Button>
         </DialogFooter>
       </DialogContent>

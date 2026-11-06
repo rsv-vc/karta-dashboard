@@ -1,4 +1,4 @@
-import { STAGES, STAGE_LABELS, TODAY, canMoveStage, isActiveStage } from "@/lib/constants";
+import { STAGES, STAGE_LABELS, TODAY, canMoveStage, isWonStage, isWorkableStage } from "@/lib/constants";
 import { laterThan, nowIso, toDateKey, toIstIso } from "@/lib/dates";
 import { calculateDeal, dealInputsChanged, type DealInputs } from "@/lib/deal-calculator";
 import type { LeadFormValues, LogActivityValues } from "@/lib/leads/schemas";
@@ -22,14 +22,14 @@ export function normalizePhone(raw: string): string {
   return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
 }
 
-/** Every stage this one may move to (canMoveStage), in display order. Won and Lost cannot move. */
+/** Every stage this one may move to (canMoveStage), in display order. Revenue generation cannot move. */
 export function allowedNextStages(stage: LeadStage): LeadStage[] {
   return STAGES.map((s) => s.value).filter((to) => canMoveStage(stage, to));
 }
 
 /** Moving here counts as holding the first discovery meeting (mirrors change_lead_stage). */
 function marksDiscovery(to: LeadStage): boolean {
-  return to !== "not_met" && to !== "no_show" && to !== "deferred" && to !== "lost";
+  return to !== "intro_discovery" && to !== "lost";
 }
 
 function lastStart(lead: Lead): string {
@@ -93,7 +93,7 @@ export function buildNewLead(input: LeadFormValues, opts: Actor & { id: string; 
   const lead: Lead = {
     id: opts.id,
     ...detailsFrom(input),
-    stage: "not_met",
+    stage: "intro_discovery",
     currency: "INR",
     discoveryDate: null,
     discoveryMonth: null,
@@ -105,7 +105,7 @@ export function buildNewLead(input: LeadFormValues, opts: Actor & { id: string; 
     lastContactedAt: null,
     nextFollowUpAt: followUpIso(input.nextFollowUpDate),
     closedAt: null,
-    stageHistory: [{ stage: "not_met", startDate: at, endDate: null }],
+    stageHistory: [{ stage: "intro_discovery", startDate: at, endDate: null }],
     activities: [],
   };
   return { ...lead, activities: addActivity(lead, { type: "note", description: "Account created", date: at, byUserId: opts.byUserId }) };
@@ -124,7 +124,7 @@ export function applyLeadEdits(
     ...details,
     ...(unchanged ? { volume: lead.volume, dealValue: lead.dealValue } : {}),
     // A closed lead has no follow-up; ignore any date sent for one.
-    nextFollowUpAt: isActiveStage(lead.stage) ? followUpIso(input.nextFollowUpDate) : null,
+    nextFollowUpAt: isWorkableStage(lead.stage) ? followUpIso(input.nextFollowUpDate) : null,
   };
   return opts.canReassign && input.ownerId ? reassignLead(next, input.ownerId, opts) : next;
 }
@@ -150,6 +150,8 @@ export interface StageChangeInput {
   to: LeadStage;
   note?: string;
   lostReason?: string;
+  /** A reason from the Drop-off reasons master; required for Lost / Deprioritised. */
+  reasonId?: number;
   finalDealValue?: number;
 }
 
@@ -157,11 +159,10 @@ export function applyStageChange(lead: Lead, input: StageChangeInput, opts: Acto
   if (!allowedNextStages(lead.stage).includes(input.to)) {
     throw new MutationError(`An account at ${STAGE_LABELS[lead.stage]} cannot move to ${STAGE_LABELS[input.to]}`);
   }
-  if (input.to === "lost" && !input.lostReason?.trim()) throw new MutationError("Say why the account was lost");
+  if (input.to === "lost" && !input.reasonId) throw new MutationError("Pick a reason from the list");
 
   // Keep history strictly ordered even if seed data has a later time today.
   const at = laterThan(opts.at ?? nowIso(TODAY), lastStart(lead));
-  const closing = !isActiveStage(input.to);
   const history = lead.stageHistory.map((e, i) =>
     i === lead.stageHistory.length - 1 ? { ...e, endDate: at } : e,
   );
@@ -174,9 +175,12 @@ export function applyStageChange(lead: Lead, input: StageChangeInput, opts: Acto
     ...lead,
     stage: input.to,
     stageHistory: history,
-    closedAt: closing ? at : null,
-    nextFollowUpAt: closing ? null : lead.nextFollowUpAt,
-    dealValue: input.to === "won" && input.finalDealValue ? input.finalDealValue : lead.dealValue,
+    // The win date is the first time it was won; Agreement executed -> Revenue generation keeps it.
+    closedAt: input.to === "lost" ? at : isWonStage(input.to) ? (isWonStage(lead.stage) ? lead.closedAt : at) : null,
+    nextFollowUpAt: input.to === "revenue_generation" ? null : lead.nextFollowUpAt,
+    dealValue: isWonStage(input.to) && input.finalDealValue ? input.finalDealValue : lead.dealValue,
+    dropReasonId: input.to === "lost" ? (input.reasonId ?? null) : null,
+    dropNote: input.to === "lost" ? (input.lostReason?.trim() ?? "") : "",
     discoveryDate: lead.discoveryDate ?? (marksDiscovery(input.to) ? toDateKey(at) : null),
     discoveryMonth: lead.discoveryMonth ?? (marksDiscovery(input.to) ? toDateKey(at).slice(0, 7) : null),
   };
@@ -186,7 +190,7 @@ export function applyStageChange(lead: Lead, input: StageChangeInput, opts: Acto
 const CONTACT_TYPES: readonly ActivityType[] = ["call", "email", "meeting"];
 
 export function applyActivity(lead: Lead, input: LogActivityValues, opts: Actor): Lead {
-  if (!isActiveStage(lead.stage)) throw new MutationError("Closed leads cannot take new activities");
+  if (!isWorkableStage(lead.stage)) throw new MutationError("Accounts generating revenue cannot take new activities");
   const createdDay = toDateKey(lead.createdAt);
   if (input.date < createdDay || input.date > TODAY) {
     throw new MutationError("The activity date must be between the lead's creation and today");
@@ -211,6 +215,6 @@ export function applyActivity(lead: Lead, input: LogActivityValues, opts: Actor)
 }
 
 export function applyFollowUp(lead: Lead, date: string): Lead {
-  if (!isActiveStage(lead.stage)) throw new MutationError("Closed leads have no follow-ups");
+  if (!isWorkableStage(lead.stage)) throw new MutationError("Accounts generating revenue have no follow-ups");
   return { ...lead, nextFollowUpAt: followUpIso(date) };
 }

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth/dal";
 import { isAdmin } from "@/lib/auth/permissions";
-import { STAGE_VALUES } from "@/lib/constants";
+import { STAGE_VALUES, isWonStage } from "@/lib/constants";
 import { fetchAppConfig, fetchLeadSummaries } from "@/lib/data/repo";
 import { calculateDeal } from "@/lib/deal-calculator";
 import { toFieldErrors } from "@/lib/leads/schemas";
@@ -43,7 +43,7 @@ async function recalculate(industry?: string): Promise<number> {
   const [config, leads] = await Promise.all([fetchAppConfig(), fetchLeadSummaries()]);
   const supabase = await createClient();
   const changes = leads
-    .filter((l) => l.stage !== "won" && (industry === undefined || l.industry === industry))
+    .filter((l) => !isWonStage(l.stage) && (industry === undefined || l.industry === industry))
     .map((l) => {
       const deal = calculateDeal(
         { segment: l.industry, callsPerMonth: l.callsPerMonth, minutesPerCall: l.minutesPerCall, pricePerMinute: l.pricePerMinute, contractMonths: l.contractMonths },
@@ -187,7 +187,6 @@ export async function saveStage(raw: unknown): Promise<MasterResult> {
 const reasonSchema = z.object({
   id: z.number().int().positive().nullable(),
   label: z.string().trim().min(2, "Enter the reason").max(80, "Keep it under 80 characters"),
-  appliesTo: z.enum(["lost", "deferred", "both"]),
   active: z.boolean(),
 });
 
@@ -197,7 +196,7 @@ export async function saveReason(raw: unknown): Promise<MasterResult> {
   if (!parsed.success) return invalid(parsed.error);
   const v = parsed.data;
   const supabase = await createClient();
-  const row = { label: v.label, applies_to: v.appliesTo, active: v.active };
+  const row = { label: v.label, active: v.active };
   const { error } = v.id
     ? await supabase.from("drop_reasons").update(row).eq("id", v.id)
     : await supabase.from("drop_reasons").insert({ ...row, position: 50 });

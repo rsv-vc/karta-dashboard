@@ -65,8 +65,8 @@ test("agent creates a lead through the duplicate warning", async ({ page }) => {
   await page.waitForURL(/\/leads\/L-\d+$/);
   leadPath = new URL(page.url()).pathname;
   await expect(page.getByRole("heading", { name: COMPANY })).toBeVisible();
-  // Score = Not met yet 1 + 10 + 7 + 3 = 21 → Warm.
-  await expect(page.getByText("Warm · 21").first()).toBeVisible();
+  // Score = Intro/Discovery 5 + 10 + 7 + 3 = 25 → Warm.
+  await expect(page.getByText("Warm · 25").first()).toBeVisible();
   // The account page shows the same calculation.
   await expect(page.getByText("₹36,00,000").first()).toBeVisible();
 });
@@ -77,10 +77,10 @@ test("agent moves it forward, logs a call and reschedules", async ({ page }) => 
   await settled(page);
 
   await page.getByRole("button", { name: "Change stage" }).click();
-  // Skipping ahead is allowed: straight to the bot / technical round.
-  await page.getByLabel("Advance to Bot / technical round").check();
-  await page.getByRole("button", { name: "Move to Bot / technical round" }).click();
-  await expect(page.getByText("Moved to Bot / technical round")).toBeVisible();
+  // Skipping ahead is allowed: straight to POC accepted.
+  await page.getByLabel("Advance to POC accepted").check();
+  await page.getByRole("button", { name: "Move to POC accepted" }).click();
+  await expect(page.getByText("Moved to POC accepted")).toBeVisible();
 
   await page.getByRole("button", { name: "Log activity" }).click();
   const dialog = page.getByRole("dialog");
@@ -131,13 +131,13 @@ test("admin allocates it, exports CSV and deletes it", async ({ page }) => {
   await page.goto(leadPath);
   await settled(page);
   await page.getByRole("button", { name: "Change stage" }).first().click();
-  await page.getByLabel("Mark as lost").check();
-  await page.getByRole("dialog").getByRole("button", { name: "Mark as lost" }).click();
+  await page.getByLabel("Mark as Lost / Deprioritised").check();
+  await page.getByRole("dialog").getByRole("button", { name: "Mark as Lost / Deprioritised" }).click();
   await expect(page.getByText("Pick a reason from the list")).toBeVisible();
-  await pick(page, "Why was it lost?", "Chose another vendor");
-  await page.getByRole("dialog").getByRole("button", { name: "Mark as lost" }).click();
-  await expect(page.getByText("Moved to Lost")).toBeVisible();
-  await expect(page.getByText("Why it was lost")).toBeVisible();
+  await pick(page, "Why is it lost or deprioritised?", "Chose another vendor");
+  await page.getByRole("dialog").getByRole("button", { name: "Mark as Lost / Deprioritised" }).click();
+  await expect(page.getByText("Moved to Lost / Deprioritised")).toBeVisible();
+  await expect(page.getByText("Why it is lost or deprioritised")).toBeVisible();
   await expect(page.getByText("Chose another vendor").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Delete lead" }).click();
@@ -172,7 +172,7 @@ test("admin: masters, investor view and notifications", async ({ page }) => {
   await page.goto("/insights");
   await settled(page);
   await expect(page.getByRole("heading", { name: "Funnels & drop-offs" })).toBeVisible();
-  await expect(page.getByText("POC → paid").first()).toBeVisible();
+  await expect(page.getByText("POC accepted → agreement").first()).toBeVisible();
 
   await page.getByRole("button", { name: /^Notifications/ }).click();
   await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
@@ -186,9 +186,9 @@ test("phone: cards and the filter sheet @mobile", async ({ page }) => {
   await expect(page.getByRole("table")).toBeHidden();
   await page.getByRole("button", { name: "Filters" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Stage" }).click();
-  await page.getByRole("option", { name: /Won/ }).click();
+  await page.getByRole("option", { name: /Revenue generation/ }).click();
   await page.keyboard.press("Escape");
-  await expect(page).toHaveURL(/stage=won/);
+  await expect(page).toHaveURL(/stage=revenue_generation/);
   await page.getByRole("dialog").getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("button", { name: "Filters · 1" })).toBeVisible();
 });

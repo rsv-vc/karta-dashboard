@@ -1,5 +1,5 @@
 import type { MonthlyTarget } from "@/data/mock-targets";
-import { ACTIVE_STAGES, STAGE_LABELS, isActiveStage } from "@/lib/constants";
+import { ACTIVE_STAGES, STAGE_LABELS, isActiveStage, isWonStage } from "@/lib/constants";
 import { daysBetween, fromDayNumber, toDateKey, toDayNumber } from "@/lib/dates";
 import { buildFollowUpBoard } from "@/lib/dashboard/follow-ups";
 import type { FollowUpItem } from "@/lib/dashboard/types";
@@ -50,12 +50,12 @@ export function computeAgentDashboard(
 ): AgentDashboard {
   const monthKey = today.slice(0, 7);
   const active = leads.filter((l) => isActiveStage(l.stage));
-  const wonThisMonth = leads.filter((l) => l.stage === "won" && l.closedAt?.startsWith(monthKey));
+  const wonThisMonth = leads.filter((l) => isWonStage(l.stage) && l.closedAt?.startsWith(monthKey));
 
   // Win rate over deals closed in the last 90 days.
   const windowStart = fromDayNumber(toDayNumber(today) - WIN_RATE_WINDOW_DAYS);
   const recentlyClosed = leads.filter((l) => l.closedAt && toDateKey(l.closedAt) > windowStart);
-  const won = recentlyClosed.filter((l) => l.stage === "won").length;
+  const won = recentlyClosed.filter((l) => isWonStage(l.stage)).length;
   const lost = recentlyClosed.length - won;
 
   // One person's leads: the owner name is never shown on their own queue.

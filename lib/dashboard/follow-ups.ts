@@ -1,4 +1,4 @@
-import { isActiveStage } from "@/lib/constants";
+import { isWorkableStage } from "@/lib/constants";
 import { daysBetween, toDateKey } from "@/lib/dates";
 import { toFollowUpItem, type FollowUpItem } from "@/lib/dashboard/types";
 import type { NameOf } from "@/lib/team";
@@ -25,7 +25,7 @@ export const FOLLOW_UP_SECTIONS = [
 export function buildFollowUpBoard(leads: Lead[], today: string, nameOf: NameOf): FollowUpBoard {
   const board: FollowUpBoard = { overdue: [], today: [], thisWeek: [], later: [] };
   const scheduled = leads
-    .filter((l) => isActiveStage(l.stage) && l.nextFollowUpAt)
+    .filter((l) => isWorkableStage(l.stage) && l.nextFollowUpAt)
     .sort((a, b) => a.nextFollowUpAt!.localeCompare(b.nextFollowUpAt!));
 
   for (const lead of scheduled) {

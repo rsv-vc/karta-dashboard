@@ -19,13 +19,9 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { DropReasonScope } from "@/lib/config";
 import type { CityMaster, IndustryMaster, MastersData, ReasonMaster, StageMaster } from "@/lib/data/masters";
 import { formatNumber } from "@/lib/utils";
-
-const SCOPE_LABELS: Record<DropReasonScope, string> = { both: "Lost and deferred", lost: "Lost only", deferred: "Deferred only" };
 
 function accountsLabel(n: number) {
   return `${n} account${n === 1 ? "" : "s"}`;
@@ -366,6 +362,7 @@ export function StagesCard({ stages }: { stages: StageMaster[] }) {
       <Table scrollLabel="Stages">
         <TableHeader>
           <TableRow>
+            <TableHead className="w-10">#</TableHead>
             <TableHead>Stage</TableHead>
             <TableHead className="text-right">Score points</TableHead>
             <TableHead className="text-right">Accounts now</TableHead>
@@ -375,8 +372,9 @@ export function StagesCard({ stages }: { stages: StageMaster[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {stages.map((s) => (
+          {stages.map((s, i) => (
             <TableRow key={s.stage}>
+              <TableCell className="text-muted-foreground tabular-nums">{i + 1}</TableCell>
               <TableCell className="font-medium">{s.label}</TableCell>
               <TableCell className="text-right tabular-nums">{s.points}</TableCell>
               <TableCell className="text-right tabular-nums">{s.accounts}</TableCell>
@@ -415,7 +413,7 @@ export function StagesCard({ stages }: { stages: StageMaster[] }) {
 
 // Drop-off reasons ------------------------------------------------------------------------------
 
-type ReasonDraft = { id: number | null; label: string; appliesTo: DropReasonScope; active: boolean; accounts: number };
+type ReasonDraft = { id: number | null; label: string; active: boolean; accounts: number };
 
 export function ReasonsCard({ reasons }: { reasons: ReasonMaster[] }) {
   const [draft, setDraft] = useState<ReasonDraft | null>(null);
@@ -424,15 +422,14 @@ export function ReasonsCard({ reasons }: { reasons: ReasonMaster[] }) {
   return (
     <MasterCard
       title="Drop-off reasons"
-      description="Picked (required) when an account is marked Lost or Deferred. The Investor view breaks drop-offs down by these."
-      onAdd={() => setDraft({ id: null, label: "", appliesTo: "both", active: true, accounts: 0 })}
+      description="Picked (required) when an account moves to Lost / Deprioritised. The Investor view breaks drop-offs down by these."
+      onAdd={() => setDraft({ id: null, label: "", active: true, accounts: 0 })}
       addLabel="Add reason"
     >
       <Table scrollLabel="Drop-off reasons">
         <TableHeader>
           <TableRow>
             <TableHead>Reason</TableHead>
-            <TableHead>Used for</TableHead>
             <TableHead className="text-right">Accounts</TableHead>
             <TableHead className="w-10">
               <span className="sr-only">Edit</span>
@@ -448,7 +445,6 @@ export function ReasonsCard({ reasons }: { reasons: ReasonMaster[] }) {
                   <Status active={r.active} />
                 </span>
               </TableCell>
-              <TableCell className="text-muted-foreground">{SCOPE_LABELS[r.appliesTo]}</TableCell>
               <TableCell className="text-right tabular-nums">{r.accounts}</TableCell>
               <TableCell>
                 <EditButton label={`Edit ${r.label}`} onClick={() => setDraft({ ...r })} />
@@ -465,7 +461,7 @@ export function ReasonsCard({ reasons }: { reasons: ReasonMaster[] }) {
           title={draft.id ? "Edit reason" : "Add reason"}
           pending={pending}
           onSubmit={() =>
-            run(() => saveReason({ id: draft.id, label: draft.label, appliesTo: draft.appliesTo, active: draft.active }), draft.id ? "Reason saved" : "Reason added")
+            run(() => saveReason({ id: draft.id, label: draft.label, active: draft.active }), draft.id ? "Reason saved" : "Reason added")
           }
           footer={draft.id && <DeleteButton inUse={draft.accounts} pending={pending} onClick={() => run(() => deleteReason(draft.id!), "Reason deleted")} />}
         >
@@ -473,21 +469,6 @@ export function ReasonsCard({ reasons }: { reasons: ReasonMaster[] }) {
             <FieldLabel htmlFor="reason-label">Reason</FieldLabel>
             <Input id="reason-label" value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} />
             <FieldError>{errors.label}</FieldError>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="reason-scope">Used for</FieldLabel>
-            <Select value={draft.appliesTo} onValueChange={(v) => setDraft({ ...draft, appliesTo: v as DropReasonScope })}>
-              <SelectTrigger id="reason-scope" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(SCOPE_LABELS) as DropReasonScope[]).map((k) => (
-                  <SelectItem key={k} value={k}>
-                    {SCOPE_LABELS[k]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </Field>
           <ActiveField checked={draft.active} onChange={(active) => setDraft({ ...draft, active })} hint="Inactive reasons stay on past accounts but are no longer offered." />
         </MasterDialog>

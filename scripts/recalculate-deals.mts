@@ -30,10 +30,10 @@ for (const row of data) {
     pricePerMinute: row.price_per_minute === null ? null : Number(row.price_per_minute),
     contractMonths: row.contract_months,
   });
-  const keepFinal = row.stage === "won" && row.deal_value > 0;
+  const keepFinal = (row.stage === "agreement_executed" || row.stage === "revenue_generation") && row.deal_value > 0;
   const next = { volume: deal.volume, deal_value: keepFinal ? row.deal_value : deal.dealValue };
   if (deal.volume === null) unknownVolume.push(row.id);
-  if (row.stage !== "won" && row.stage !== "lost") {
+  if (!["agreement_executed", "revenue_generation", "lost"].includes(row.stage)) {
     openValue += next.deal_value;
     openVolume += next.volume ?? 0;
   }

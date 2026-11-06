@@ -1,5 +1,6 @@
 import type { DropReason } from "@/lib/config";
-import { PIPELINE_ORDER, SOURCE_LABELS, STAGE_LABELS, isActiveStage } from "@/lib/constants";
+import { PIPELINE_ORDER, SOURCE_LABELS, STAGE_LABELS, isActiveStage, isWonStage } from "@/lib/constants";
+import { FUNNELS } from "@/lib/dashboard/funnel-health";
 import { discoveryHeld } from "@/lib/dashboard/mis";
 import { daysBetween, toDateKey } from "@/lib/dates";
 import type { Lead, LeadSource, LeadStage } from "@/types/lead";
@@ -20,22 +21,18 @@ const median = (values: number[]) => {
 
 /**
  * The furthest stage on the main path an account ever reached: from its stage
- * history, its current stage, and (for imported accounts with little history)
- * whether its discovery was held.
+ * history and its current stage.
  */
 export function furthestStage(lead: Lead): LeadStage {
   const seen = [lead.stage, ...lead.stageHistory.map((h) => h.stage)].filter((s) => rank(s) >= 0);
-  let best = seen.reduce<LeadStage>((a, s) => (rank(s) > rank(a) ? s : a), "not_met");
-  if (rank(best) < rank("discovery_done") && discoveryHeld(lead)) best = "discovery_done";
-  return best;
+  return seen.reduce<LeadStage>((a, s) => (rank(s) > rank(a) ? s : a), "intro_discovery");
 }
 
 /** When the account first entered `stage` (or a later one), from its history; null when unknown. */
 function enteredAt(lead: Lead, stage: LeadStage): string | null {
+  if (stage === "intro_discovery" && lead.discoveryDate) return lead.discoveryDate;
   const hit = lead.stageHistory.filter((h) => rank(h.stage) >= rank(stage)).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
-  if (hit) return hit.startDate;
-  if (stage === "discovery_done" && lead.discoveryDate) return lead.discoveryDate;
-  return null;
+  return hit ? hit.startDate : null;
 }
 
 export interface ReasonCount {
@@ -58,9 +55,8 @@ export interface FunnelInsight {
   inProgress: number;
   /** In progress with no contact for 30+ days. */
   stuck: number;
-  lost: number;
-  deferred: number;
-  /** Lost and deferred inside this step, by reason, most common first. */
+  dropped: number;
+  /** Lost / Deprioritised inside this step, by reason, most common first. */
   reasons: ReasonCount[];
   medianDays: number | null;
   /**
@@ -89,9 +85,9 @@ export interface BreakdownRow {
 export interface CohortRow {
   month: string;
   discoveries: number;
-  followUp: number | null;
-  technical: number | null;
+  demo: number | null;
   poc: number | null;
+  live: number | null;
   won: number | null;
   dropped: number | null;
 }
@@ -113,16 +109,15 @@ export interface Insights {
   bySource: BreakdownRow[];
   funnels: FunnelInsight[];
   lostReasons: ReasonCount[];
-  deferredReasons: ReasonCount[];
   /** Lost accounts by the furthest stage they reached. */
   lostAtStage: { stage: LeadStage; label: string; count: number; value: number }[];
   cohorts: CohortRow[];
 }
 
 const FUNNEL_STEPS: { id: 1 | 2 | 3; title: string; from: LeadStage; to: LeadStage }[] = [
-  { id: 1, title: "Discovery → follow-up", from: "discovery_done", to: "follow_up" },
-  { id: 2, title: "Follow-up → bot test / POC", from: "follow_up", to: "technical_round" },
-  { id: 3, title: "POC → paid", from: "poc_pitched", to: "won" },
+  { id: 1, title: FUNNELS[1], from: "intro_discovery", to: "product_demo" },
+  { id: 2, title: FUNNELS[2], from: "product_demo", to: "poc_accepted" },
+  { id: 3, title: FUNNELS[3], from: "poc_accepted", to: "agreement_executed" },
 ];
 
 function monthsBack(today: string, n: number): string[] {
@@ -140,9 +135,8 @@ export function computeInsights(
   const labels = o.labels ?? STAGE_LABELS;
   const reasonLabel = new Map(o.reasons.map((r) => [r.id, r.label]));
   const open = leads.filter((l) => isActiveStage(l.stage));
-  const won = leads.filter((l) => l.stage === "won");
+  const won = leads.filter((l) => isWonStage(l.stage));
   const lost = leads.filter((l) => l.stage === "lost");
-  const deferred = leads.filter((l) => l.stage === "deferred");
   const furthest = new Map(leads.map((l) => [l.id, furthestStage(l)]));
   const reached = (l: Lead, stage: LeadStage) => rank(furthest.get(l.id)!) >= rank(stage);
   const sum = (ls: Lead[]) => ls.reduce((n, l) => n + l.dealValue, 0);
@@ -162,7 +156,7 @@ export function computeInsights(
 
   const daysToWin = won
     .map((l) => {
-      const start = enteredAt(l, "discovery_done");
+      const start = enteredAt(l, "intro_discovery");
       return start && l.closedAt ? daysBetween(toDateKey(start), toDateKey(l.closedAt)) : null;
     })
     .filter((d): d is number => d !== null && d >= 0);
@@ -179,7 +173,7 @@ export function computeInsights(
     return keys
       .map((key) => {
         const group = leads.filter((l) => keyOf(l) === key);
-        const g = { open: group.filter((l) => isActiveStage(l.stage)), won: group.filter((l) => l.stage === "won"), lost: group.filter((l) => l.stage === "lost") };
+        const g = { open: group.filter((l) => isActiveStage(l.stage)), won: group.filter((l) => isWonStage(l.stage)), lost: group.filter((l) => l.stage === "lost") };
         return {
           key,
           label: labelOf(key),
@@ -196,11 +190,12 @@ export function computeInsights(
   };
 
   const funnels = FUNNEL_STEPS.map((f): FunnelInsight => {
-    const entered = leads.filter((l) => reached(l, f.from));
+    // Funnel 1 starts at a discovery actually held, not at an account merely being added.
+    const entered = leads.filter((l) => (f.from === "intro_discovery" ? discoveryHeld(l) : reached(l, f.from)));
     const converted = entered.filter((l) => reached(l, f.to));
     const inside = entered.filter((l) => !reached(l, f.to));
     const inProgress = inside.filter((l) => isActiveStage(l.stage));
-    const dropped = inside.filter((l) => l.stage === "lost" || l.stage === "deferred");
+    const dropped = inside.filter((l) => l.stage === "lost");
     const durations = converted
       .map((l) => {
         const a = enteredAt(l, f.from);
@@ -226,8 +221,7 @@ export function computeInsights(
       rate: share(converted.length, entered.length),
       inProgress: inProgress.length,
       stuck: inProgress.filter((l) => daysBetween(toDateKey(l.lastContactedAt ?? l.createdAt), o.today) >= 30).length,
-      lost: dropped.filter((l) => l.stage === "lost").length,
-      deferred: dropped.filter((l) => l.stage === "deferred").length,
+      dropped: dropped.length,
       reasons: reasonCounts(dropped),
       medianDays: median(durations),
       recentRate: cohort(lagDays, lagDays + 90),
@@ -236,7 +230,7 @@ export function computeInsights(
     };
   });
 
-  const lostAtStage = PIPELINE_ORDER.filter((s) => s !== "won")
+  const lostAtStage = PIPELINE_ORDER.filter((s) => s !== "revenue_generation")
     .map((stage) => {
       const group = lost.filter((l) => furthest.get(l.id) === stage);
       return { stage, label: labels[stage], count: group.length, value: sum(group) };
@@ -250,11 +244,11 @@ export function computeInsights(
     return {
       month,
       discoveries: group.length,
-      followUp: rate("follow_up"),
-      technical: rate("technical_round"),
-      poc: rate("poc_pitched"),
-      won: share(group.filter((l) => l.stage === "won").length, group.length),
-      dropped: share(group.filter((l) => l.stage === "lost" || l.stage === "deferred").length, group.length),
+      demo: rate("product_demo"),
+      poc: rate("poc_accepted"),
+      live: rate("poc_live"),
+      won: share(group.filter((l) => isWonStage(l.stage)).length, group.length),
+      dropped: share(group.filter((l) => l.stage === "lost").length, group.length),
     };
   });
 
@@ -275,7 +269,6 @@ export function computeInsights(
     bySource: breakdown((l) => l.source, (k) => SOURCE_LABELS[k as LeadSource] ?? k),
     funnels,
     lostReasons: reasonCounts(lost),
-    deferredReasons: reasonCounts(deferred),
     lostAtStage,
     cohorts,
   };

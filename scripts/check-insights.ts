@@ -3,7 +3,7 @@
 import "./_demo-today";
 import { mockLeads } from "@/data/mock-leads";
 import { DEMO_USER_IDS as U } from "@/data/mock-users";
-import { DEFAULT_APP_CONFIG, reasonsFor, stageLabelsOf, stagePointsOf } from "@/lib/config";
+import { DEFAULT_APP_CONFIG, activeReasons, stageLabelsOf, stagePointsOf } from "@/lib/config";
 import { PIPELINE_ORDER, TODAY, isActiveStage } from "@/lib/constants";
 import { ACTION_LIMIT, computeHome, previousMonth } from "@/lib/dashboard/home";
 import { computeInsights, furthestStage } from "@/lib/dashboard/insights";
@@ -19,10 +19,10 @@ function check(label: string, ok: boolean) {
 }
 
 const REASONS = [
-  { id: 1, label: "Price too high", appliesTo: "both" as const, active: true },
-  { id: 2, label: "Chose another vendor", appliesTo: "lost" as const, active: true },
-  { id: 3, label: "Timing: revisit next quarter", appliesTo: "deferred" as const, active: true },
-  { id: 4, label: "Retired", appliesTo: "both" as const, active: false },
+  { id: 1, label: "Price too high", active: true },
+  { id: 2, label: "Chose another vendor", active: true },
+  { id: 3, label: "Timing: revisit next quarter", active: true },
+  { id: 4, label: "Retired", active: false },
 ];
 const config = { ...DEFAULT_APP_CONFIG, dropReasons: REASONS };
 
@@ -30,10 +30,9 @@ const config = { ...DEFAULT_APP_CONFIG, dropReasons: REASONS };
 console.log("Masters config");
 check("default stage points match the scoring guide", Object.entries(stagePointsOf(config)).every(([s, p]) => STAGE_POINTS[s as keyof typeof STAGE_POINTS] === p));
 check("stage labels cover every stage", Object.keys(stageLabelsOf(config)).length === Object.keys(STAGE_POINTS).length);
-check("lost offers both + lost-only reasons, not retired ones", reasonsFor(config, "lost").map((r) => r.id).join() === "1,2");
-check("deferred offers both + deferred-only reasons", reasonsFor(config, "deferred").map((r) => r.id).join() === "1,3");
-const renamed = { ...config.stages, won: { label: "Paid", points: 20 } };
-check("custom stage points change the score", leadScore({ stage: "won", responsiveness: 0, decisionAccess: 0, timingBudget: 0 }, stagePointsOf({ stages: renamed })) === 20);
+check("active reasons only, not retired ones", activeReasons(config).map((r) => r.id).join() === "1,2,3");
+const renamed = { ...config.stages, revenue_generation: { label: "Paid", points: 20 } };
+check("custom stage points change the score", leadScore({ stage: "revenue_generation", responsiveness: 0, decisionAccess: 0, timingBudget: 0 }, stagePointsOf({ stages: renamed })) === 20);
 const custom = { industries: [{ name: "Bank", avgCallsPerMonth: 100, minutesPerCall: 2, active: true }], pricing: { ...config.pricing, pricePerMinute: 10, contractMonths: 6 } };
 const deal = calculateDeal({ segment: "Bank", callsPerMonth: null, minutesPerCall: null, pricePerMinute: null, contractMonths: null }, custom);
 check("calculator uses the industry's average and minutes from the masters", deal.volume === 200);
@@ -88,12 +87,12 @@ check("lost reasons add up to lost accounts", ins.lostReasons.reduce((n, r) => n
 check("a recorded reason is counted under its label", ins.lostReasons.some((r) => r.label === "Chose another vendor" && r.count >= 1));
 check("unrecorded reasons sort last", ins.lostReasons.findIndex((r) => r.reasonId === null) === -1 || ins.lostReasons[ins.lostReasons.length - 1].reasonId === null);
 check("funnel conversion never exceeds entries", ins.funnels.every((f) => f.converted <= f.entered));
-check("each funnel's entries = converted + in progress + dropped", ins.funnels.every((f) => f.entered === f.converted + f.inProgress + f.lost + f.deferred));
+check("each funnel's entries = converted + in progress + dropped", ins.funnels.every((f) => f.entered === f.converted + f.inProgress + f.dropped));
 check("revenue by month covers 12 months", ins.revenueByMonth.length === 12 && ins.revenueByMonth[11].month === TODAY.slice(0, 7));
 check("segment rows add up to open accounts", ins.bySegment.reduce((n, r) => n + r.open, 0) === ins.totals.openAccounts);
-check("won accounts reached won", leads.filter((l) => l.stage === "won").every((l) => furthestStage(l) === "won"));
+check("revenue accounts reached revenue", leads.filter((l) => l.stage === "revenue_generation").every((l) => furthestStage(l) === "revenue_generation"));
 check("furthest stage is on the main path", leads.every((l) => PIPELINE_ORDER.includes(furthestStage(l))));
-check("cohort shares are 0–100%", ins.cohorts.every((c) => [c.followUp, c.technical, c.poc, c.won, c.dropped].every((v) => v === null || (v >= 0 && v <= 1))));
+check("cohort shares are 0–100%", ins.cohorts.every((c) => [c.demo, c.poc, c.live, c.won, c.dropped].every((v) => v === null || (v >= 0 && v <= 1))));
 const none = computeInsights([], { today: TODAY, reasons: [] });
 check("no accounts renders zeros, not errors", none.totals.winRate === null && none.funnels.every((f) => f.rate === null));
 

@@ -80,7 +80,7 @@ export const fetchAppConfig = cache(async (): Promise<AppConfig> => {
       ...DEFAULT_APP_CONFIG.stages,
       ...Object.fromEntries(stages.data.map((r) => [r.stage, { label: r.label, points: r.points }])),
     },
-    dropReasons: reasons.data.map((r) => ({ id: r.id, label: r.label, appliesTo: r.applies_to, active: r.active })),
+    dropReasons: reasons.data.map((r) => ({ id: r.id, label: r.label, active: r.active })),
   };
 });
 

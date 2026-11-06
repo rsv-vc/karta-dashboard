@@ -30,16 +30,13 @@ type Enums = {
     | "head_of_growth"
     | "unknown";
   lead_stage:
-    | "not_met"
-    | "no_show"
-    | "discovery_done"
-    | "follow_up"
-    | "technical_round"
-    | "poc_pitched"
-    | "poc_approved"
-    | "poc_ongoing"
-    | "won"
-    | "deferred"
+    | "intro_discovery"
+    | "product_demo"
+    | "poc_accepted"
+    | "poc_integration"
+    | "poc_live"
+    | "agreement_executed"
+    | "revenue_generation"
     | "lost";
   user_status: "active" | "inactive";
 };
@@ -114,7 +111,7 @@ type MaskedLead = { company_name: string; id: string; owner_id: string; poc_name
 type IndustryRow = { name: string; avg_calls_per_month: number | null; minutes_per_call: number; position: number; active: boolean };
 type CityRow = { name: string; position: number; active: boolean };
 type StageSettingRow = { stage: Enums["lead_stage"]; label: string; points: number };
-type DropReasonRow = { id: number; label: string; applies_to: "lost" | "deferred" | "both"; position: number; active: boolean };
+type DropReasonRow = { id: number; label: string; position: number; active: boolean };
 type SettingsRow = {
   company_domains: string[];
   id: boolean;

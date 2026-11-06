@@ -1,8 +1,9 @@
 import "server-only";
 import { requireRole } from "@/lib/auth/dal";
+import { STAGE_VALUES } from "@/lib/constants";
 import { fetchAppConfig, fetchLeadSummaries } from "@/lib/data/repo";
 import { createClient } from "@/lib/supabase/server";
-import type { AppConfig, DropReasonScope } from "@/lib/config";
+import type { AppConfig } from "@/lib/config";
 import type { LeadStage } from "@/types/lead";
 
 // The Masters page (admins): every list with how many accounts use each entry,
@@ -25,7 +26,6 @@ export interface CityMaster {
 export interface ReasonMaster {
   id: number;
   label: string;
-  appliesTo: DropReasonScope;
   active: boolean;
   accounts: number;
 }
@@ -60,7 +60,7 @@ export async function getMastersData(): Promise<MastersData> {
     industries: config.industries.map((i) => ({ ...i, accounts: count((l) => l.industry, i.name) })),
     cities: cities.data.map((c) => ({ name: c.name, active: c.active, accounts: count((l) => l.city, c.name) })),
     pricing: config.pricing,
-    stages: (Object.keys(config.stages) as LeadStage[]).map((stage) => ({
+    stages: STAGE_VALUES.map((stage) => ({
       stage,
       ...config.stages[stage],
       accounts: count((l) => l.stage, stage),

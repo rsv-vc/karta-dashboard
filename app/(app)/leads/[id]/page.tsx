@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/dal";
 import { canDeleteLead } from "@/lib/auth/permissions";
-import { COMPANY_SIZE_LABELS, SOURCE_LABELS, isActiveStage } from "@/lib/constants";
+import { COMPANY_SIZE_LABELS, SOURCE_LABELS, isWonStage, isWorkableStage } from "@/lib/constants";
 import { getLeadForViewer } from "@/lib/data/leads";
 import { fetchAppConfig, fetchTeam } from "@/lib/data/repo";
 import { stagePointsOf, type AppConfig } from "@/lib/config";
@@ -89,15 +89,15 @@ function FullLead({ lead, canDelete, nameOf, config }: { lead: Lead; canDelete: 
   const points = stagePointsOf(config);
   const dropReason = config.dropReasons.find((r) => r.id === lead.dropReasonId)?.label;
   const allowed = allowedNextStages(lead.stage);
-  const active = isActiveStage(lead.stage);
+  const workable = isWorkableStage(lead.stage);
   const mainActions =
-    allowed.length > 0 || active ? (
+    allowed.length > 0 || workable ? (
       <>
         {/* Keyed by stage so the dialog resets its choice after each move. */}
         {allowed.length > 0 && (
           <ChangeStageDialog key={lead.stage} leadId={lead.id} current={lead.stage} allowed={allowed} dealValue={lead.dealValue} />
         )}
-        {active && <LogActivityDialog leadId={lead.id} createdDay={toDateKey(lead.createdAt)} />}
+        {workable && <LogActivityDialog leadId={lead.id} createdDay={toDateKey(lead.createdAt)} />}
       </>
     ) : null;
 
@@ -124,8 +124,10 @@ function FullLead({ lead, canDelete, nameOf, config }: { lead: Lead; canDelete: 
           </Link>
         </Button>
         {canDelete && <DeleteLeadButton leadId={lead.id} companyName={lead.companyName} />}
-        {!active && lead.closedAt && (
-          <span className="text-sm text-muted-foreground">Closed {formatDate(lead.closedAt)}</span>
+        {lead.closedAt && (
+          <span className="text-sm text-muted-foreground">
+            {isWonStage(lead.stage) ? "Won" : "Closed"} {formatDate(lead.closedAt)}
+          </span>
         )}
       </div>
 
@@ -150,7 +152,7 @@ function FullLead({ lead, canDelete, nameOf, config }: { lead: Lead; canDelete: 
         </div>
 
         <div className="flex min-w-0 flex-col gap-6">
-          {active && (
+          {workable && (
             <Card>
               <CardHeader>
                 <CardTitle>Next step</CardTitle>
@@ -162,10 +164,10 @@ function FullLead({ lead, canDelete, nameOf, config }: { lead: Lead; canDelete: 
               </CardContent>
             </Card>
           )}
-          {(lead.stage === "lost" || lead.stage === "deferred") && dropReason && (
+          {lead.stage === "lost" && dropReason && (
             <Card>
               <CardHeader>
-                <CardTitle>{lead.stage === "lost" ? "Why it was lost" : "Why it is deferred"}</CardTitle>
+                <CardTitle>Why it is lost or deprioritised</CardTitle>
                 <CardDescription>
                   {dropReason}
                   {lead.dropNote && <span className="mt-1 block">{lead.dropNote}</span>}

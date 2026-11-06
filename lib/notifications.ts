@@ -1,5 +1,5 @@
 import type { MonthlyTarget } from "@/data/mock-targets";
-import { isActiveStage } from "@/lib/constants";
+import { isActiveStage, isWonStage } from "@/lib/constants";
 import { daysBetween, toDateKey, toIstIso } from "@/lib/dates";
 import { getFollowUpsDue } from "@/lib/selectors";
 import { formatINRShort } from "@/lib/utils";
@@ -91,7 +91,7 @@ export function buildNotifications(
   }
 
   // Wins: the team's for employees, their own for agents.
-  for (const l of (o.isAdmin ? leads : own).filter((l) => l.stage === "won" && recent(l.closedAt))) {
+  for (const l of (o.isAdmin ? leads : own).filter((l) => isWonStage(l.stage) && recent(l.closedAt))) {
     const mine = l.ownerId === o.viewerId;
     items.push({
       id: `won-${l.id}`,
@@ -128,7 +128,7 @@ export function buildNotifications(
 
   // Monthly targets met (the viewer's own).
   const wonThisMonth = own
-    .filter((l) => l.stage === "won" && l.closedAt?.slice(0, 7) === month)
+    .filter((l) => isWonStage(l.stage) && l.closedAt?.slice(0, 7) === month)
     .sort((a, b) => a.closedAt!.localeCompare(b.closedAt!));
   let running = 0;
   const crossing = o.target.wonValue > 0 ? wonThisMonth.find((l) => (running += l.dealValue) >= o.target.wonValue) : undefined;

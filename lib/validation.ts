@@ -1,4 +1,4 @@
-import { TODAY, canMoveStage, isActiveStage } from "@/lib/constants";
+import { TODAY, canMoveStage, isActiveStage, isWonStage, isWorkableStage } from "@/lib/constants";
 import { daysBetween, toDateKey } from "@/lib/dates";
 import type { Lead } from "@/types/lead";
 import type { User } from "@/types/user";
@@ -37,8 +37,8 @@ function checkStageHistory(lead: Lead, seedRules: boolean): string[] {
   const history = lead.stageHistory;
   if (history.length === 0) return ["stageHistory is empty"];
 
-  // Imported accounts start wherever the tracker had them; seeded ones start at "Not met yet".
-  if (seedRules && history[0].stage !== "not_met") problems.push(`history starts at "${history[0].stage}", not "not_met"`);
+  // Imported accounts start wherever the tracker had them; seeded ones start at Intro/Discovery.
+  if (seedRules && history[0].stage !== "intro_discovery") problems.push(`history starts at "${history[0].stage}", not "intro_discovery"`);
   if (history[0].startDate !== lead.createdAt) problems.push("first stage does not start at createdAt");
 
   const last = history[history.length - 1];
@@ -67,11 +67,14 @@ function checkStageHistory(lead: Lead, seedRules: boolean): string[] {
 function checkDates(lead: Lead, seedRules: boolean): string[] {
   const problems: string[] = [];
   const active = isActiveStage(lead.stage);
-  const finalStart = lead.stageHistory[lead.stageHistory.length - 1]?.startDate;
+  // Won: the first time it was won. Lost / Deprioritised: when it got there.
+  const finalStart = isWonStage(lead.stage)
+    ? lead.stageHistory.find((e) => isWonStage(e.stage))?.startDate
+    : lead.stageHistory[lead.stageHistory.length - 1]?.startDate;
 
   if (active && lead.closedAt !== null) problems.push("active lead has closedAt");
   if (!active && lead.closedAt !== finalStart) problems.push("closedAt does not equal final stage start");
-  if (!active && lead.nextFollowUpAt !== null) problems.push("closed lead has nextFollowUpAt");
+  if (!isWorkableStage(lead.stage) && lead.nextFollowUpAt !== null) problems.push("revenue account has nextFollowUpAt");
   if (toDateKey(lead.createdAt) > TODAY) problems.push("createdAt is after TODAY");
 
   const lifetimeEnd = lead.closedAt ?? TODAY;

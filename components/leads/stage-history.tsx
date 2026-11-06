@@ -9,7 +9,7 @@ export function StageHistory({ history }: { history: StageHistoryEntry[] }) {
   return (
     <ol className="flex flex-col gap-2.5">
       {[...history].reverse().map((entry) => {
-        const closed = entry.stage === "won" || entry.stage === "lost";
+        const closed = entry.stage === "revenue_generation";
         const days = daysBetween(entry.startDate, entry.endDate ?? TODAY);
         return (
           <li key={`${entry.stage}-${entry.startDate}`} className="flex items-center justify-between gap-3 text-sm">

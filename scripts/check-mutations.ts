@@ -4,15 +4,13 @@ import { mockLeads } from "@/data/mock-leads";
 import { DEMO_USER_IDS as U, mockUsers } from "@/data/mock-users";
 import { TODAY } from "@/lib/constants";
 import { laterThan, nowIso } from "@/lib/dates";
-import {
-  MutationError,
+import { applyFollowUp, MutationError,
   allowedNextStages,
   applyActivity,
   applyLeadEdits,
   applyStageChange,
   buildNewLead,
-  normalizePhone,
-} from "@/lib/leads/mutations";
+  normalizePhone, } from "@/lib/leads/mutations";
 import { createLeadSchema, leadFormSchema, type LeadFormValues } from "@/lib/leads/schemas";
 import { nameLookup } from "@/lib/team";
 import { validateLeads } from "@/lib/validation";
@@ -57,6 +55,7 @@ const input: LeadFormValues = {
   decisionAccess: 7,
   timingBudget: 3,
   nextStep: "Demo with IT",
+  discoveryDate: "",
   nextFollowUpDate: "",
   notes: "",
   ownerId: "",
@@ -84,35 +83,42 @@ check("new lead is valid", isValid(lead));
 check("new lead normalizes email and phone", lead.pocEmail === "asha@zenithsolutions.in" && lead.pocPhone === "+91 98765 43210");
 
 // Walk the main path one step at a time.
-check("moving backwards throws", throws(() => applyStageChange(applyStageChange(lead, { to: "follow_up" }, { byUserId: U.priya }), { to: "discovery_done" }, { byUserId: U.priya })));
-check("no-show only before discovery", allowedNextStages("not_met").includes("no_show") && !allowedNextStages("follow_up").includes("no_show"));
-check("deferred re-opens onto the main path", allowedNextStages("deferred").includes("follow_up") && !allowedNextStages("deferred").includes("deferred"));
-check("skipping forward is allowed", allowedNextStages("discovery_done").includes("poc_pitched"));
+check("moving backwards throws", throws(() => applyStageChange(applyStageChange(lead, { to: "poc_accepted" }, { byUserId: U.priya }), { to: "product_demo" }, { byUserId: U.priya })));
+check("Lost / Deprioritised re-opens onto the main path", allowedNextStages("lost").includes("product_demo") && !allowedNextStages("lost").includes("lost"));
+check("skipping forward is allowed", allowedNextStages("intro_discovery").includes("poc_live"));
+check("Agreement executed can only move to revenue or be lost", allowedNextStages("agreement_executed").join() === "revenue_generation,lost");
 let ok = true;
-for (const to of ["discovery_done", "follow_up", "technical_round", "poc_pitched", "poc_approved", "poc_ongoing", "won"] as const) {
-  lead = applyStageChange(lead, { to, finalDealValue: to === "won" ? 1_800_000 : undefined }, { byUserId: U.priya, at: "2026-10-28T09:00:00+05:30" });
+let wonAt: string | null = null;
+for (const to of ["product_demo", "poc_accepted", "poc_integration", "poc_live", "agreement_executed", "revenue_generation"] as const) {
+  lead = applyStageChange(lead, { to, finalDealValue: to === "agreement_executed" ? 1_800_000 : undefined }, { byUserId: U.priya, at: "2026-10-28T09:00:00+05:30" });
+  if (to === "agreement_executed") wonAt = lead.closedAt;
   ok &&= isValid(lead);
 }
-check("not met → won stays valid at every step (timestamps kept ordered)", ok);
+check("intro → revenue stays valid at every step (timestamps kept ordered)", ok);
+check("the win date is Agreement executed; Revenue generation keeps it", wonAt !== null && lead.closedAt === wonAt);
 check("the first discovery dates the account", lead.discoveryDate === "2026-10-28" && lead.discoveryMonth === "2026-10");
-check("won sets closedAt and final value", lead.closedAt !== null && lead.dealValue === 1_800_000 && lead.nextFollowUpAt === null);
+check("winning sets closedAt and final value", lead.closedAt !== null && lead.dealValue === 1_800_000 && lead.nextFollowUpAt === null);
 check("new account: volume and deal value come from the calculator", buildNewLead(input, { id: "L-2002", ownerId: U.priya, byUserId: U.priya, at }).volume === 100_000 && buildNewLead(input, { id: "L-2003", ownerId: U.priya, byUserId: U.priya, at }).dealValue === 3_600_000);
 const keptFinal = applyLeadEdits(lead, { ...input, notes: "Signed" }, { byUserId: U.priya, canReassign: false, ownerName: (id) => id });
 check("editing a won account keeps its final value when no calculator input changed", keptFinal.dealValue === 1_800_000);
 const repriced = applyLeadEdits(lead, { ...input, pricePerMinute: 5 }, { byUserId: U.priya, canReassign: false, ownerName: (id) => id });
 check("…and recalculates when one did (1,00,000 min × ₹5 × 12)", repriced.dealValue === 6_000_000);
-check("one stage_change per transition", lead.activities.filter((a) => a.type === "stage_change").length === 7);
-check("won is terminal", allowedNextStages("won").length === 0 && throws(() => applyStageChange(lead, { to: "lost", lostReason: "x" }, { byUserId: U.priya })));
-check("activity on a closed lead throws", throws(() => applyActivity(lead, { type: "call", description: "Hi", date: TODAY, nextFollowUpDate: "" }, { byUserId: U.priya })));
+check("one stage_change per transition", lead.activities.filter((a) => a.type === "stage_change").length === 6);
+check("Revenue generation is final", allowedNextStages("revenue_generation").length === 0 && throws(() => applyStageChange(lead, { to: "lost", reasonId: 1 }, { byUserId: U.priya })));
+check("activity on a revenue account throws", throws(() => applyActivity(lead, { type: "call", description: "Hi", date: TODAY, nextFollowUpDate: "" }, { byUserId: U.priya })));
 
 // Lost needs a reason.
-const proposal = mockLeads.find((l) => l.stage === "poc_pitched")!;
+const proposal = { ...mockLeads.find((l) => l.stage === "poc_integration")!, nextFollowUpAt: "2026-11-20T10:00:00+05:30" };
 check("lost without reason throws", throws(() => applyStageChange(proposal, { to: "lost" }, { byUserId: proposal.ownerId })));
-const lost = applyStageChange(proposal, { to: "lost", lostReason: "Went with a competitor" }, { byUserId: proposal.ownerId });
+const lost = applyStageChange(proposal, { to: "lost", reasonId: 3, lostReason: "Went with a competitor" }, { byUserId: proposal.ownerId });
 check("lost with reason is valid", isValid(lost) && lost.activities.at(-1)!.description.endsWith("Went with a competitor"));
+check("…stores the reason, keeps the reconnect date and closes it", lost.dropReasonId === 3 && lost.nextFollowUpAt === proposal.nextFollowUpAt && lost.closedAt !== null);
+const reopened = applyStageChange(lost, { to: "product_demo" }, { byUserId: proposal.ownerId });
+check("re-opening clears the reason and the closed date", reopened.dropReasonId === null && reopened.dropNote === "" && reopened.closedAt === null);
+check("a lost account can still take follow-ups", applyFollowUp(lost, "2026-12-01").nextFollowUpAt!.startsWith("2026-12-01"));
 
 // Activities.
-const active = mockLeads.find((l) => l.stage === "follow_up" && l.lastContactedAt !== null)!;
+const active = mockLeads.find((l) => l.stage === "poc_accepted" && l.lastContactedAt !== null)!;
 check("activity before creation throws", throws(() => applyActivity(active, { type: "call", description: "Call", date: "2026-01-01", nextFollowUpDate: "" }, { byUserId: active.ownerId })));
 const called = applyActivity(active, { type: "call", description: "Pricing call", date: TODAY, nextFollowUpDate: "2026-11-03" }, { byUserId: active.ownerId });
 check("a call updates lastContactedAt and follow-up", called.lastContactedAt!.startsWith(TODAY) && called.nextFollowUpAt!.startsWith("2026-11-03") && isValid(called));

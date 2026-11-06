@@ -1,4 +1,4 @@
-import { MIS_SOURCES, PIPELINE_ORDER, SOURCE_LABELS, STAGES, STAGE_LABELS, TODAY, isActiveStage } from "@/lib/constants";
+import { MIS_SOURCES, PIPELINE_ORDER, SOURCE_LABELS, STAGES, STAGE_LABELS, TODAY, isActiveStage, isWonStage, isWorkableStage } from "@/lib/constants";
 import { toDateKey } from "@/lib/dates";
 import { BANDS, STAGE_POINTS, leadBand, leadScore, type Band } from "@/lib/scoring";
 import type { Lead, LeadSource, LeadStage } from "@/types/lead";
@@ -6,7 +6,7 @@ import type { Lead, LeadSource, LeadStage } from "@/types/lead";
 // The sales MIS home page (the workbook's Pipeline Overview and Monthly Funnel
 // tabs), computed from accounts. Pure: takes accounts and "today", no I/O.
 // Like the workbook, funnel counts use each account's CURRENT stage, so an
-// account that later deferred or was lost counts only as "discovery held".
+// account that later dropped to Lost / Deprioritised counts only as "discovery held".
 
 export interface FunnelStepRow {
   label: string;
@@ -42,15 +42,13 @@ export interface MonthRow {
   month: string;
   discoveriesBySource: Record<string, number>;
   discoveries: number;
-  noShows: number;
-  /** held / (held + no-shows); null when nothing was booked. */
-  showRate: number | null;
-  followUpPlus: number;
-  technicalPlus: number;
+  demoPlus: number;
   pocPlus: number;
-  /** technicalPlus / discoveries */
-  technicalShare: number | null;
-  deferredOrLost: number;
+  livePlus: number;
+  wonPlus: number;
+  /** demoPlus / discoveries */
+  demoShare: number | null;
+  dropped: number;
 }
 
 export interface NextStepRow {
@@ -86,9 +84,9 @@ const at = (stage: LeadStage) => PIPELINE_ORDER.indexOf(stage);
 /** Current stage is `min` or later on the main path (exits are not "beyond"). */
 const atLeast = (lead: Lead, min: LeadStage) => at(lead.stage) >= at(min);
 
-/** The first discovery meeting was held (the workbook's "Discovery held: Done"). */
+/** The first discovery meeting was held: it has a date, or the account is past stage 1. */
 export function discoveryHeld(lead: Lead): boolean {
-  return lead.discoveryDate !== null || (at(lead.stage) >= at("discovery_done"));
+  return lead.discoveryDate !== null || at(lead.stage) > at("intro_discovery");
 }
 
 const share = (part: number, whole: number) => (whole > 0 ? part / whole : null);
@@ -108,11 +106,12 @@ export function computeMisOverview(
 
   const funnelSteps: [string, (l: Lead) => boolean][] = [
     ["Discovery held", discoveryHeld],
-    ["Follow-up / deep dive or beyond", (l) => atLeast(l, "follow_up")],
-    ["Bot / technical round or beyond", (l) => atLeast(l, "technical_round")],
-    ["POC pitched or beyond", (l) => atLeast(l, "poc_pitched")],
-    ["POC ongoing or won", (l) => atLeast(l, "poc_ongoing")],
-    ["Won (paid)", (l) => l.stage === "won"],
+    [`${labels.product_demo} or beyond`, (l) => atLeast(l, "product_demo")],
+    [`${labels.poc_accepted} or beyond`, (l) => atLeast(l, "poc_accepted")],
+    [`${labels.poc_integration} or beyond`, (l) => atLeast(l, "poc_integration")],
+    [`${labels.poc_live} or beyond`, (l) => atLeast(l, "poc_live")],
+    [`${labels.agreement_executed} or beyond`, (l) => atLeast(l, "agreement_executed")],
+    [labels.revenue_generation, (l) => l.stage === "revenue_generation"],
   ];
   const funnel = funnelSteps.map(([label, test]) => {
     const count = leads.filter(test).length;
@@ -161,24 +160,22 @@ export function computeMisOverview(
   const months = monthKeys.map((month): MonthRow => {
     const cohort = leads.filter((l) => l.discoveryMonth === month);
     const cohortHeld = cohort.filter(discoveryHeld);
-    const noShows = cohort.filter((l) => l.stage === "no_show").length;
-    const technicalPlus = cohort.filter((l) => atLeast(l, "technical_round")).length;
+    const demoPlus = cohort.filter((l) => atLeast(l, "product_demo")).length;
     return {
       month,
       discoveriesBySource: Object.fromEntries(sources.map((s) => [s.value, cohortHeld.filter((l) => l.source === s.value).length])),
       discoveries: cohortHeld.length,
-      noShows,
-      showRate: share(cohortHeld.length, cohortHeld.length + noShows),
-      followUpPlus: cohort.filter((l) => atLeast(l, "follow_up")).length,
-      technicalPlus,
-      pocPlus: cohort.filter((l) => atLeast(l, "poc_pitched")).length,
-      technicalShare: share(technicalPlus, cohortHeld.length),
-      deferredOrLost: cohort.filter((l) => l.stage === "deferred" || l.stage === "lost").length,
+      demoPlus,
+      pocPlus: cohort.filter((l) => atLeast(l, "poc_accepted")).length,
+      livePlus: cohort.filter((l) => atLeast(l, "poc_live")).length,
+      wonPlus: cohort.filter((l) => isWonStage(l.stage)).length,
+      demoShare: share(demoPlus, cohortHeld.length),
+      dropped: cohort.filter((l) => l.stage === "lost").length,
     };
   });
 
   const nextSteps = scored
-    .filter((x) => isActiveStage(x.lead.stage) && x.lead.nextFollowUpAt)
+    .filter((x) => isWorkableStage(x.lead.stage) && x.lead.nextFollowUpAt)
     .map(({ lead, band }) => {
       const date = toDateKey(lead.nextFollowUpAt!);
       return { id: lead.id, companyName: lead.companyName, nextStep: lead.nextStep, date, band, overdue: date < today };
@@ -188,9 +185,9 @@ export function computeMisOverview(
   return {
     tracked: leads.length,
     discoveriesHeld: held.length,
-    notMetYet: leads.filter((l) => l.stage === "not_met").length,
+    notMetYet: leads.filter((l) => l.stage === "intro_discovery" && !discoveryHeld(l)).length,
     hotWarm: scored.filter((x) => x.band === "hot" || x.band === "warm").length,
-    won: leads.filter((l) => l.stage === "won").length,
+    won: leads.filter((l) => isWonStage(l.stage)).length,
     avgScore: average(scored.map((x) => x.score)),
     openDealValue: leads.filter((l) => isActiveStage(l.stage)).reduce((n, l) => n + l.dealValue, 0),
     openVolume: leads.filter((l) => isActiveStage(l.stage)).reduce((n, l) => n + (l.volume ?? 0), 0),

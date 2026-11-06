@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { mockLeads } from "@/data/mock-leads";
 import { demoAgents, mockUsers } from "@/data/mock-users";
-import { STAGES } from "@/lib/constants";
+import { STAGES, isWonStage } from "@/lib/constants";
 import {
   findPossibleDuplicates,
   getDirectory,
@@ -93,7 +93,7 @@ function AgentTable() {
       <TableBody>
         {demoAgents().map((agent) => {
           const leads = getLeadsByOwner(agent.id);
-          const won = leads.filter((l) => l.stage === "won");
+          const won = leads.filter((l) => isWonStage(l.stage));
           return (
             <TableRow key={agent.id}>
               <TableCell>{agent.name}</TableCell>

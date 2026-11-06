@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth/dal";
 import { canCreateLead, canDeleteLead, canReassignLead, canViewFullLead, isAdmin } from "@/lib/auth/permissions";
-import { TODAY } from "@/lib/constants";
+import { TODAY, isWorkableStage } from "@/lib/constants";
 import { fetchAppConfig, fetchLead, fetchTeam } from "@/lib/data/repo";
 import { calculateDeal, dealInputsChanged, type CalculatorConfig } from "@/lib/deal-calculator";
 import { dealInputsOf, followUpIso, normalizePhone } from "@/lib/leads/mutations";
@@ -136,6 +136,7 @@ export async function createLead(raw: unknown): Promise<ActionResult> {
       ...detailColumns(input, await fetchAppConfig()),
       owner_id: ownerId,
       next_follow_up_at: followUpIso(input.nextFollowUpDate) ?? "",
+      discovery_date: input.discoveryDate,
     },
   });
   return error ? dbError(error) : done(data);
@@ -164,7 +165,7 @@ export async function updateLead(id: string, raw: unknown): Promise<ActionResult
   }
 
   const supabase = await createClient();
-  const closed = lead.stage === "won" || lead.stage === "lost";
+  const closed = !isWorkableStage(lead.stage);
   const columns = detailColumns(input, await fetchAppConfig());
   // Keep stored totals (e.g. a final value recorded when won) unless a calculator input changed.
   if (!dealInputsChanged(dealInputsOf({ ...lead, industry: lead.industry as LeadFormValues["industry"] }), dealInputsOf(input))) {
@@ -177,6 +178,11 @@ export async function updateLead(id: string, raw: unknown): Promise<ActionResult
       ...columns,
       // A closed lead has no follow-up; ignore any date sent for one.
       next_follow_up_at: closed ? null : followUpIso(input.nextFollowUpDate),
+      discovery_date: input.discoveryDate || null,
+      // Without a date, keep the month the tracker had (the first of it, as stored).
+      discovery_month: input.discoveryDate
+        ? `${input.discoveryDate.slice(0, 7)}-01`
+        : lead.discoveryMonth && `${lead.discoveryMonth}-01`,
     })
     .eq("id", id)
     .select("id");
@@ -229,7 +235,7 @@ export async function setFollowUp(id: string, raw: unknown): Promise<ActionResul
   if (!parsed.success) return invalid(parsed.error);
   const lead = await fetchLead(id);
   if (!lead) return { ok: false, error: "You can only change leads you own" };
-  if (lead.stage === "won" || lead.stage === "lost") return { ok: false, error: "Closed leads have no follow-ups" };
+  if (!isWorkableStage(lead.stage)) return { ok: false, error: "Accounts generating revenue have no follow-ups" };
 
   const supabase = await createClient();
   const { data, error } = await supabase

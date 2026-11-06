@@ -1,3 +1,4 @@
+import { isWonStage } from "@/lib/constants";
 import { DealBreakdown } from "@/components/leads/deal-breakdown";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { calculateDeal, type CalculatorConfig } from "@/lib/deal-calculator";
@@ -14,7 +15,7 @@ export function DealCard({ lead, config }: { lead: Lead; config: CalculatorConfi
     contractMonths: lead.contractMonths,
   }, config);
   // A final value recorded when the deal was won takes precedence over the estimate.
-  const final = lead.stage === "won" && lead.dealValue > 0 && lead.dealValue !== deal.dealValue;
+  const final = isWonStage(lead.stage) && lead.dealValue > 0 && lead.dealValue !== deal.dealValue;
   return (
     <Card>
       <CardHeader>

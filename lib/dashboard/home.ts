@@ -1,7 +1,7 @@
 import type { MonthlyTarget } from "@/data/mock-targets";
 import { STALE_AFTER_DAYS } from "@/lib/dashboard/agent-metrics";
 import { discoveryHeld } from "@/lib/dashboard/mis";
-import { isActiveStage } from "@/lib/constants";
+import { isActiveStage, isWonStage, isWorkableStage } from "@/lib/constants";
 import { daysBetween, toDateKey } from "@/lib/dates";
 import { STAGE_POINTS, leadBand, leadScore, type Band } from "@/lib/scoring";
 import type { Lead, LeadStage } from "@/types/lead";
@@ -87,12 +87,13 @@ export function computeHome(
   const last = previousMonth(month);
   const open = scope.filter((l) => isActiveStage(l.stage));
   const inMonth = (pick: (l: Lead) => string | null, m: string, leads = scope) => leads.filter((l) => monthOf(pick(l)) === m);
-  const won = (m: string) => inMonth((l) => l.closedAt, m).filter((l) => l.stage === "won");
+  const won = (m: string) => inMonth((l) => l.closedAt, m).filter((l) => isWonStage(l.stage));
   const discovered = (m: string) => scope.filter((l) => discoveryHeld(l) && (l.discoveryDate ? l.discoveryDate.slice(0, 7) : l.discoveryMonth) === m);
   const scores = scope.map((l) => leadScore(l, points));
   const sum = (leads: Lead[]) => leads.reduce((n, l) => n + l.dealValue, 0);
   const hotWarm = scope.filter((l) => ["hot", "warm"].includes(leadBand(l, points)));
-  const pocsLive = open.filter((l) => l.stage === "poc_approved" || l.stage === "poc_ongoing");
+  const pocsLive = open.filter((l) => l.stage === "poc_live");
+  const pocsStarting = open.filter((l) => l.stage === "poc_accepted" || l.stage === "poc_integration");
 
   const kpis: Kpi[] = [
     {
@@ -134,8 +135,8 @@ export function computeHome(
       value: pocsLive.length,
       previous: null,
       format: "count",
-      detail: "Approved or ongoing",
-      href: `${o.isAdmin ? "/leads" : "/my-leads"}?stage=poc_approved,poc_ongoing`,
+      detail: `${pocsStarting.length} more accepted or integrating`,
+      href: `${o.isAdmin ? "/leads" : "/my-leads"}?stage=poc_live`,
     },
     {
       key: "hotWarm",
@@ -150,6 +151,8 @@ export function computeHome(
 
   // Today's action points: always the viewer's own accounts.
   const own = open.filter((l) => l.ownerId === o.viewerId);
+  // Follow-ups also run on Lost / Deprioritised (a date to reconnect) and Agreement executed.
+  const ownFollowUps = scope.filter((l) => l.ownerId === o.viewerId && isWorkableStage(l.stage));
   const item = (l: Lead, note: string): ActionItem => ({
     id: l.id,
     companyName: l.companyName,
@@ -171,8 +174,8 @@ export function computeHome(
   });
 
   const actions: ActionList[] = [
-    list("overdue", "Overdue", "Follow-ups whose date has passed", "/follow-ups", own.filter((l) => (due(l) ?? "9") < o.today).sort(byDue), (l) => l.nextStep || "Follow up"),
-    list("today", "Due today", "Follow-ups for today", "/follow-ups", own.filter((l) => due(l) === o.today).sort(byDue), (l) => l.nextStep || "Follow up"),
+    list("overdue", "Overdue", "Follow-ups whose date has passed", "/follow-ups", ownFollowUps.filter((l) => (due(l) ?? "9") < o.today).sort(byDue), (l) => l.nextStep || "Follow up"),
+    list("today", "Due today", "Follow-ups for today", "/follow-ups", ownFollowUps.filter((l) => due(l) === o.today).sort(byDue), (l) => l.nextStep || "Follow up"),
     list(
       "noDate",
       "No next date",
@@ -207,7 +210,7 @@ export function computeHome(
 
   const overdueTeam = new Map<string, number>();
   if (o.isAdmin) {
-    for (const l of open) {
+    for (const l of scope.filter((x) => isWorkableStage(x.stage))) {
       if (l.ownerId !== o.viewerId && (due(l) ?? "9") < o.today) overdueTeam.set(l.ownerId, (overdueTeam.get(l.ownerId) ?? 0) + 1);
     }
   }
@@ -223,7 +226,7 @@ export function computeHome(
         }
       : null,
     actions,
-    wins: recentEvents(scope.filter((l) => l.stage === "won"), (l) => l.closedAt, 60).slice(0, 6),
+    wins: recentEvents(scope.filter((l) => isWonStage(l.stage)), (l) => l.closedAt, 60).slice(0, 6),
     newAccounts: recentEvents(scope, (l) => l.createdAt, 14).slice(0, 6),
     teamOverdue: [...overdueTeam].map(([ownerId, count]) => ({ ownerId, count })).sort((a, b) => b.count - a.count),
   };

@@ -72,16 +72,16 @@ const OWNER_LOSS_WEIGHT: Record<string, number> = {
 /** Exact stage counts (~15/20/18/14/10/13/10 %). Sums to 75. */
 const LOST_COUNT = 7;
 const ACTIVE_AND_WON_PLAN: { stage: LeadStage; count: number }[] = [
-  { stage: "won", count: 10 },
-  { stage: "poc_ongoing", count: 8 },
-  { stage: "poc_pitched", count: 10 },
-  { stage: "follow_up", count: 14 },
-  { stage: "discovery_done", count: 15 },
-  { stage: "not_met", count: 11 },
+  { stage: "revenue_generation", count: 10 },
+  { stage: "poc_live", count: 8 },
+  { stage: "poc_integration", count: 10 },
+  { stage: "poc_accepted", count: 14 },
+  { stage: "product_demo", count: 15 },
+  { stage: "intro_discovery", count: 11 },
 ];
 
 /** The main-path stages the fictional data moves through (skipping steps is allowed). */
-const DEMO_PATH: LeadStage[] = ["not_met", "discovery_done", "follow_up", "poc_pitched", "poc_ongoing", "won"];
+const DEMO_PATH: LeadStage[] = ["intro_discovery", "product_demo", "poc_accepted", "poc_integration", "poc_live", "revenue_generation"];
 
 const MIN_STAGE_GAP = 3;
 const MAX_STAGE_GAP = 25;
@@ -283,7 +283,7 @@ function assignStages(skeletons: Skeleton[]): Map<number, StagePlan> {
     (s) => OWNER_LOSS_WEIGHT[s.ownerId] * Math.min(ageOf(s), 90),
     LOST_COUNT,
   );
-  const dropOutWeights = [1, 3, 3, 2, 1]; // not_met..poc_ongoing
+  const dropOutWeights = [1, 3, 3, 2, 1]; // intro_discovery..poc_live
   for (const s of lost) {
     const feasible = [0, 1, 2, 3, 4].filter((k) => MIN_STAGE_GAP * (k + 1) <= ageOf(s));
     const k = rng.weightedPick(feasible, feasible.map((i) => dropOutWeights[i]));
@@ -291,7 +291,7 @@ function assignStages(skeletons: Skeleton[]): Map<number, StagePlan> {
   }
 
   // Everyone else: rank by age, owner skill and some jitter, then hand out the
-  // most advanced stages first. October leads end up mostly not met / discovery done.
+  // most advanced stages first. October leads end up mostly at intro / product demo.
   const ranked = skeletons
     .filter((s) => !plans.has(s.index))
     .map((s) => ({ s, score: ageOf(s) * (0.55 + 0.9 * rng.rand()) * OWNER_SKILL[s.ownerId] }))
@@ -512,8 +512,8 @@ const NEXT_STEPS = [
 ];
 
 function misFields(stage: LeadStage, history: StageHistoryEntry[]) {
-  const advanced = DEMO_PATH.indexOf(stage) >= DEMO_PATH.indexOf("follow_up");
-  const first = history.find((e) => e.stage !== "not_met" && e.stage !== "lost");
+  const advanced = DEMO_PATH.indexOf(stage) >= DEMO_PATH.indexOf("poc_accepted");
+  const first = history.find((e) => e.stage !== "intro_discovery" && e.stage !== "lost");
   const discoveryDate = first ? toDateKey(first.startDate) : null;
   return {
     // Calls a month entered for most accounts; the rest use their segment's average.

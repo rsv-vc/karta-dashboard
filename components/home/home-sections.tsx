@@ -20,7 +20,7 @@ export function HomeTiles({ o, scopeLabel }: { o: MisOverview; scopeLabel: strin
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
       <StatTile label="Accounts tracked" value={o.tracked} detail={scopeLabel} href="/leads" />
-      <StatTile label="Discoveries held" value={o.discoveriesHeld} detail={`${o.notMetYet} not met yet`} />
+      <StatTile label="Discoveries held" value={o.discoveriesHeld} detail={`${o.notMetYet} not held yet`} />
       <StatTile label="Active (Hot + Warm)" value={o.hotWarm} detail="Score 20 or more" href="/leads?band=hot,warm" />
       <StatTile label="Won (paid)" value={o.won} href="/leads?stage=won" />
       <StatTile label="Average score" value={one(o.avgScore)} detail="out of 40" />
@@ -41,7 +41,7 @@ export function DiscoveryFunnel({ o }: { o: MisOverview }) {
     <Card>
       <CardHeader>
         <CardTitle>Funnel from discovery</CardTitle>
-        <CardDescription>Current stage of each account. Accounts that later deferred or were lost count only as discovery held.</CardDescription>
+        <CardDescription>Current stage of each account. Accounts that later dropped to Lost / Deprioritised count only as discovery held.</CardDescription>
       </CardHeader>
       <CardContent>
         <ol className="flex flex-col gap-3">
@@ -222,13 +222,12 @@ export function MonthlyFunnel({ o }: { o: MisOverview }) {
                   </TableHead>
                 ))}
                 <TableHead className="text-right">Discoveries</TableHead>
-                <TableHead className="text-right">No-shows</TableHead>
-                <TableHead className="text-right">Show rate</TableHead>
-                <TableHead className="text-right">Now follow-up+</TableHead>
-                <TableHead className="text-right">Now bot / tech+</TableHead>
-                <TableHead className="text-right">Now POC+</TableHead>
-                <TableHead className="text-right">Bot / tech+ %</TableHead>
-                <TableHead className="text-right">Deferred or lost</TableHead>
+                <TableHead className="text-right">Now demo+</TableHead>
+                <TableHead className="text-right">Now POC accepted+</TableHead>
+                <TableHead className="text-right">Now POC live+</TableHead>
+                <TableHead className="text-right">Now won</TableHead>
+                <TableHead className="text-right">Demo+ %</TableHead>
+                <TableHead className="text-right">Lost / Deprioritised</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -241,13 +240,12 @@ export function MonthlyFunnel({ o }: { o: MisOverview }) {
                     </TableCell>
                   ))}
                   <TableCell className={cn(NUM, "font-medium")}>{m.discoveries}</TableCell>
-                  <TableCell className={NUM}>{m.noShows}</TableCell>
-                  <TableCell className={NUM}>{pct(m.showRate)}</TableCell>
-                  <TableCell className={NUM}>{m.followUpPlus}</TableCell>
-                  <TableCell className={NUM}>{m.technicalPlus}</TableCell>
+                  <TableCell className={NUM}>{m.demoPlus}</TableCell>
                   <TableCell className={NUM}>{m.pocPlus}</TableCell>
-                  <TableCell className={NUM}>{pct(m.technicalShare)}</TableCell>
-                  <TableCell className={NUM}>{m.deferredOrLost}</TableCell>
+                  <TableCell className={NUM}>{m.livePlus}</TableCell>
+                  <TableCell className={NUM}>{m.wonPlus}</TableCell>
+                  <TableCell className={NUM}>{pct(m.demoShare)}</TableCell>
+                  <TableCell className={NUM}>{m.dropped}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

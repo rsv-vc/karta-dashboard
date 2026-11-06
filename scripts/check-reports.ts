@@ -48,8 +48,8 @@ check("report CSV has every section", ["Summary", "Agents", "Sources", "Won deal
 check("report CSV money is plain integers (no ₹)", !reportCsv.includes("₹"));
 const leadCsvLines = leadsCsv(mockLeads, nameLookup(mockUsers)).trimEnd().split("\r\n");
 check("leads CSV = header + 75 rows", leadCsvLines.length === 76);
-const wonRows = filterLeadRows(mockLeads.map((l) => toLeadRow(l, nameLookup(mockUsers))), { ...DEFAULT_FILTERS, stages: ["won"] }).length;
-check(`filtered export size (${wonRows} won)`, wonRows === mockLeads.filter((l) => l.stage === "won").length);
+const wonRows = filterLeadRows(mockLeads.map((l) => toLeadRow(l, nameLookup(mockUsers))), { ...DEFAULT_FILTERS, stages: ["revenue_generation"] }).length;
+check(`filtered export size (${wonRows} won)`, wonRows === mockLeads.filter((l) => l.stage === "revenue_generation").length);
 
 if (failures > 0) {
   console.error(`\n${failures} check(s) failed`);

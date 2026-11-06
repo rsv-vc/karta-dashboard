@@ -17,17 +17,17 @@ export function StageStepper({ history }: { history: StageHistoryEntry[] }) {
   const labels = stageLabelsOf(useAppConfig());
   const current = history[history.length - 1].stage;
   const lost = current === "lost";
-  const won = current === "won";
-  // For a lost lead, the furthest real stage it reached.
-  const reached = lost ? (history[history.length - 2]?.stage ?? "new") : current;
+  const finished = current === "revenue_generation";
+  // For a lost lead, the stage it dropped from.
+  const reached = lost ? (history[history.length - 2]?.stage ?? "intro_discovery") : current;
   const reachedIndex = PIPELINE_ORDER.indexOf(reached);
 
   return (
     <div className="@container flex flex-col gap-3">
       <ol className="flex items-start" aria-label="Pipeline progress">
         {PIPELINE_ORDER.map((stage, i) => {
-          const done = i < reachedIndex || (i === reachedIndex && (lost || won));
-          const isCurrent = !lost && !won && i === reachedIndex;
+          const done = i < reachedIndex || (i === reachedIndex && (lost || finished));
+          const isCurrent = !lost && !finished && i === reachedIndex;
           return (
             <li
               key={stage}
@@ -70,13 +70,13 @@ export function StageStepper({ history }: { history: StageHistoryEntry[] }) {
       </ol>
       {!lost && (
         <p className="text-sm text-muted-foreground @[32rem]:hidden">
-          {won ? "Won" : `Step ${reachedIndex + 1} of ${PIPELINE_ORDER.length}: ${labels[reached]}`}
+          {`Step ${reachedIndex + 1} of ${PIPELINE_ORDER.length}: ${labels[reached]}`}
         </p>
       )}
       {lost && (
         <p className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/50 dark:text-red-300">
           <XCircleIcon className="size-4 shrink-0" />
-          Lost at {labels[reached]}
+          {labels.lost} after {labels[reached]}
         </p>
       )}
     </div>

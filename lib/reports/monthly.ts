@@ -1,5 +1,5 @@
-import { SOURCES, SOURCE_LABELS } from "@/lib/constants";
-import { getMonthlySummary, reachedStageInMonth, type MonthlySummaryRow } from "@/lib/selectors";
+import { SOURCES, SOURCE_LABELS, isWonStage } from "@/lib/constants";
+import { discoveryHeldInMonth, getMonthlySummary, reachedStageInMonth, type MonthlySummaryRow } from "@/lib/selectors";
 import { nameLookup, type NameOf } from "@/lib/team";
 import type { ActivityType, Lead, LeadStage } from "@/types/lead";
 import type { User } from "@/types/user";
@@ -111,7 +111,8 @@ function contactActivitiesIn(leads: Lead[], key: string): number {
 
 /** "Moved from Proposal to Lost: Budget cut" -> "Budget cut"; null when no reason was recorded. */
 export function parseLostReason(description: string): string | null {
-  const match = /^Moved from .+ to Lost: (.+)$/.exec(description);
+  // The stage name is whatever the Stages master called it then; reasons may contain colons.
+  const match = /^Moved from .+? to [^:]+: (.+)$/.exec(description);
   return match ? match[1].trim() : null;
 }
 
@@ -160,14 +161,14 @@ export function buildMonthlyReport(
     .map((agent): AgentReportRow => {
       const own = leads.filter((l) => l.ownerId === agent.id);
       const ownClosed = own.filter((l) => l.closedAt?.startsWith(month));
-      const won = ownClosed.filter((l) => l.stage === "won");
+      const won = ownClosed.filter((l) => isWonStage(l.stage));
       const lost = ownClosed.length - won.length;
       return {
         agentId: agent.id,
         name: agent.name,
         newLeads: own.filter((l) => l.createdAt.startsWith(month)).length,
-        discoveries: own.filter((l) => reachedStageInMonth(l, "discovery_done", month)).length,
-        pocs: own.filter((l) => reachedStageInMonth(l, "poc_pitched", month)).length,
+        discoveries: own.filter((l) => discoveryHeldInMonth(l, month)).length,
+        pocs: own.filter((l) => reachedStageInMonth(l, "poc_accepted", month)).length,
         won: won.length,
         wonValue: won.reduce((s, l) => s + l.dealValue, 0),
         lost,
@@ -179,7 +180,7 @@ export function buildMonthlyReport(
 
   const sources = SOURCES.map((source): SourceReportRow => {
     const bySource = leads.filter((l) => l.source === source);
-    const won = bySource.filter((l) => l.stage === "won" && l.closedAt?.startsWith(month));
+    const won = bySource.filter((l) => isWonStage(l.stage) && l.closedAt?.startsWith(month));
     return {
       label: SOURCE_LABELS[source],
       newLeads: bySource.filter((l) => l.createdAt.startsWith(month)).length,
@@ -209,7 +210,7 @@ export function buildMonthlyReport(
     agents: agentRows,
     sources,
     wonDeals: closedIn
-      .filter((l) => l.stage === "won")
+      .filter((l) => isWonStage(l.stage))
       .map((l) => ({ id: l.id, companyName: l.companyName, ownerName: ownerName(l.ownerId), dealValue: l.dealValue, closedAt: l.closedAt! }))
       .sort((a, b) => b.dealValue - a.dealValue),
     lostDeals: closedIn

@@ -73,22 +73,17 @@ const SOURCE: Record<string, LeadSource> = {
 };
 
 /** The short Stage column, refined by the source tracker's raw status where it says more. */
-function stageFor(stage: string, status: string, held: string): LeadStage {
+function stageFor(stage: string, status: string): LeadStage {
   const s = stage.toLowerCase();
   const st = status.toLowerCase();
-  if (s === "won") return "won";
-  if (s === "lost") return "lost";
-  if (s === "deferred") return "deferred";
-  if (s === "no-show" || st.startsWith("no show") || held.toLowerCase() === "no-show") return "no_show";
+  if (s === "won") return "revenue_generation";
+  if (s === "lost" || s === "deferred") return "lost";
   if (s === "poc") {
-    if (st.startsWith("bot_test")) return "technical_round";
-    if (st.startsWith("poc ongoing")) return "poc_ongoing";
-    if (st.startsWith("poc approved")) return "poc_approved";
-    return "poc_pitched";
+    if (st.startsWith("poc ongoing")) return "poc_live";
+    if (st.startsWith("poc approved")) return "poc_accepted";
+    return "product_demo";
   }
-  if (s === "demo done" || s === "discovery done") return "discovery_done";
-  if (s === "discovery") return held.toLowerCase() === "done" ? "discovery_done" : "not_met";
-  return held.toLowerCase() === "done" ? "discovery_done" : "not_met";
+  return "intro_discovery";
 }
 
 const STATUS: Record<string, ActionStatus> = {
@@ -185,7 +180,7 @@ sheet.eachRow((row, n) => {
   const ownerRaw = text(row.getCell(C.owner).value).toLowerCase();
   const status = text(row.getCell(C.status).value);
   const held = text(row.getCell(C.held).value);
-  const stage = stageFor(stageRaw, status, held);
+  const stage = stageFor(stageRaw, status);
   const notes: string[] = [];
 
   const segment = (INDUSTRIES as readonly string[]).includes(segmentRaw) ? segmentRaw : "Other";
@@ -204,7 +199,7 @@ sheet.eachRow((row, n) => {
 
   const month = dateKey(row.getCell(C.month).value);
   const exact = dateKey(row.getCell(C.date).value);
-  const heldDone = held.toLowerCase() === "done" || stage === "won";
+  const heldDone = held.toLowerCase() === "done" || stage === "revenue_generation";
   // The first discovery: its exact date, else the first of its month (approximate).
   const discoveryDate = heldDone ? (exact ?? (month ? month : null)) : null;
   if (heldDone && !exact && month) monthOnly++;
@@ -216,8 +211,8 @@ sheet.eachRow((row, n) => {
   if (volumeText && volume === null) notes.push(`volume "${volumeText.replace(/\s+/g, " ")}" not a number → blank`);
 
   const nextDate = dateKey(row.getCell(C.nextDate).value);
-  const open = stage !== "won" && stage !== "lost";
-  if (nextDate && !open) notes.push("next step date dropped (account is closed)");
+  const open = stage !== "revenue_generation";
+  if (nextDate && !open) notes.push("next step date dropped (account is generating revenue)");
 
   planned.push({
     row: n,
@@ -259,11 +254,11 @@ for (const p of planned) byName.set(normal(p.company), [...(byName.get(normal(p.
 const merged = new Set<Planned>();
 for (const group of byName.values()) {
   if (group.length < 2) continue;
-  const keep = group.find((p) => p.stage !== "won") ?? group[0];
+  const keep = group.find((p) => p.stage !== "revenue_generation") ?? group[0];
   for (const p of group) {
     if (p === keep) continue;
     merged.add(p);
-    keep.notes.push(`also listed as ${p.stage === "won" ? "a Won customer" : p.stage} (row ${p.row})`);
+    keep.notes.push(`also listed as ${p.stage === "revenue_generation" ? "a Won customer" : p.stage} (row ${p.row})`);
     decisions.push(`row ${p.row} "${p.company}" (${p.stage}) merged into row ${keep.row} "${keep.company}" (${keep.stage})`);
   }
 }
@@ -353,7 +348,7 @@ for (const a of accounts) {
   // Created at the first thing we know about the account; closed accounts close then too.
   const createdDay = [a.discoveryDate, a.discoveryMonth, a.updatedOn].filter((d): d is string => Boolean(d)).sort()[0] ?? today;
   const createdAt = toIstIso(createdDay, 10, 0);
-  const closed = a.stage === "won" || a.stage === "lost";
+  const closed = a.stage === "revenue_generation" || a.stage === "lost";
   const deal = calculateDeal({ segment: a.segment, callsPerMonth: a.callsPerMonth, minutesPerCall: null, pricePerMinute: null, contractMonths: null });
   const { data: lead, error } = await db
     .from("leads")

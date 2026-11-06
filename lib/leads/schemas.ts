@@ -52,6 +52,8 @@ export const leadFormSchema = z.object({
   decisionAccess: score(10),
   timingBudget: score(5),
   nextStep: z.string().trim().max(200, "Keep the next step under 200 characters"),
+  /** When the first discovery meeting was held; "" = not yet. */
+  discoveryDate: z.string().refine((v) => v === "" || (DATE_KEY.test(v) && v <= TODAY), "Pick today or an earlier date"),
   // Past dates are allowed here so an overdue lead can still be edited; new
   // follow-ups must be today or later (createLeadSchema / the update action).
   nextFollowUpDate: dateOrEmpty,
@@ -84,14 +86,14 @@ export const changeStageSchema = z
   .object({
     to: z.enum(STAGE_VALUES),
     note: z.string().trim().max(300),
-    /** Optional details for Lost / Deferred, next to the reason picked from the list. */
+    /** Optional details for Lost / Deprioritised, next to the reason picked from the list. */
     lostReason: z.string().trim().max(300),
-    /** A reason from the Drop-off reasons master; required for Lost and Deferred. */
+    /** A reason from the Drop-off reasons master; required for Lost / Deprioritised. */
     reasonId: z.number().int().positive().optional(),
     finalDealValue: z.number().int().positive().optional(),
   })
   .superRefine((v, ctx) => {
-    if ((v.to === "lost" || v.to === "deferred") && !v.reasonId) {
+    if (v.to === "lost" && !v.reasonId) {
       ctx.addIssue({ code: "custom", path: ["reasonId"], message: "Pick a reason from the list" });
     }
   });
