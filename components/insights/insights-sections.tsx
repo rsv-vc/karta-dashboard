@@ -274,7 +274,7 @@ export function StageDaysTable({ rows, finishedStays }: { rows: Insights["stageD
         <CardTitle>Average days in each stage</CardTitle>
         <CardDescription>
           How long accounts take before moving on, and how long those there now have been waiting. Based on {finishedStays} finished{" "}
-          {finishedStays === 1 ? "stay" : "stays"} so far; accounts imported from the tracker count from their import, so these firm up as accounts move.
+          {finishedStays === 1 ? "stay" : "stays"} so far. The tracker didn't record past moves, so imported accounts show all their time since first recorded in the stage they were imported at. These firm up as accounts move.
         </CardDescription>
       </CardHeader>
       <CardContent>

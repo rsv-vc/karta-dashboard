@@ -20,7 +20,7 @@ export function StageTimeCard({ lead, labels }: { lead: Lead; labels: Record<Lea
         <CardTitle>Days in each stage</CardTitle>
         <CardDescription>
           {plural(total)} in total{start ? ` since ${formatDate(start)}` : ""}.
-          {imported && " Imported from the tracker, so moves before the import aren't counted."}
+          {imported && " Imported from the tracker, which didn't record earlier moves, so that time all shows in the stage it was imported at."}
         </CardDescription>
       </CardHeader>
       <CardContent>
