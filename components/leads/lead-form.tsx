@@ -49,6 +49,15 @@ const PRIORITY_OPTIONS = toOptions(PRIORITIES, PRIORITY_LABELS);
 
 type Name = FieldPath<LeadFormValues>;
 
+/** A select's "no value" choice (Radix does not allow an empty item value). */
+const NOT_SET = "__not_set";
+
+/** An optional master's active entries, plus this account's own if it was retired since. */
+function optionalOptions(values: readonly string[], current: string | undefined): Option[] {
+  const list = current && !values.includes(current) ? [...values, current] : values;
+  return [{ value: NOT_SET, label: "Not set" }, ...toOptions(list)];
+}
+
 /**
  * Create / edit form for an account. Validation runs on the client with the shared
  * zod schema and again in the Server Action. A debounced duplicate check warns
@@ -137,6 +146,11 @@ export function LeadForm({
           <TextField register={register} errors={formState.errors} name="city" label="City (optional)" placeholder="Mumbai" list="city-options" />
           <SelectField control={control} name="companySize" label="Company size (optional)" options={SIZE_OPTIONS} />
           {ownerOptions && <SelectField control={control} name="priority" label="Priority" options={PRIORITY_OPTIONS} />}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <SelectField control={control} name="competitor" label="Competitor (optional)" options={optionalOptions(config.competitors, defaultValues.competitor)} />
+          <SelectField control={control} name="useCase" label="Use case (optional)" options={optionalOptions(config.useCases, defaultValues.useCase)} />
+          <SelectField control={control} name="direction" label="Direction (optional)" options={optionalOptions(config.directions, defaultValues.direction)} />
         </div>
         <datalist id="city-options">
           {config.cities.map((c) => (
@@ -297,7 +311,7 @@ function SelectField({
   options,
 }: {
   control: Control<LeadFormValues>;
-  name: "industry" | "companySize" | "source" | "priority" | "ownerId";
+  name: "industry" | "companySize" | "source" | "priority" | "ownerId" | "competitor" | "useCase" | "direction";
   label: string;
   options: Option[];
 }) {
@@ -308,7 +322,7 @@ function SelectField({
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid}>
           <FieldLabel htmlFor={name}>{label}</FieldLabel>
-          <Select value={field.value || undefined} onValueChange={field.onChange}>
+          <Select value={field.value || ""} onValueChange={(v) => field.onChange(v === NOT_SET ? "" : v)}>
             <SelectTrigger id={name} className="w-full" aria-invalid={fieldState.invalid} onBlur={field.onBlur}>
               <SelectValue placeholder="Select…" />
             </SelectTrigger>

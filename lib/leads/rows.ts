@@ -20,6 +20,9 @@ export type LeadRow = Pick<
   | "dealValue"
   | "volume"
   | "nextStep"
+  | "competitor"
+  | "useCase"
+  | "direction"
   | "ownerId"
   | "createdAt"
   | "lastContactedAt"
@@ -44,6 +47,9 @@ export function toLeadRow(lead: Lead, nameOf: NameOf, points: Record<LeadStage, 
     dealValue: lead.dealValue,
     volume: lead.volume,
     nextStep: lead.nextStep,
+    competitor: lead.competitor,
+    useCase: lead.useCase,
+    direction: lead.direction,
     score: leadScore(lead, points),
     band: leadBand(lead, points),
     ownerId: lead.ownerId,

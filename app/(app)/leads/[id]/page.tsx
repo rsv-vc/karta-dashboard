@@ -16,6 +16,7 @@ import { BandBadge } from "@/components/leads/band-badge";
 import { DealCard } from "@/components/leads/deal-card";
 import { ScoreCard } from "@/components/leads/score-card";
 import { StageHistory } from "@/components/leads/stage-history";
+import { StageTimeCard } from "@/components/leads/stage-time-card";
 import { StageStepper } from "@/components/leads/stage-stepper";
 import { PageSkeleton } from "@/components/shared/page-skeleton";
 import { StageBadge } from "@/components/shared/stage-badge";
@@ -26,7 +27,7 @@ import { canDeleteLead } from "@/lib/auth/permissions";
 import { COMPANY_SIZE_LABELS, SOURCE_LABELS, isWonStage, isWorkableStage } from "@/lib/constants";
 import { getLeadForViewer } from "@/lib/data/leads";
 import { fetchAppConfig, fetchTeam } from "@/lib/data/repo";
-import { stagePointsOf, type AppConfig } from "@/lib/config";
+import { stageLabelsOf, stagePointsOf, type AppConfig } from "@/lib/config";
 import { toDateKey } from "@/lib/dates";
 import { allowedNextStages } from "@/lib/leads/mutations";
 import { nameLookup, type NameOf } from "@/lib/team";
@@ -87,7 +88,7 @@ function MaskedLead({ entry, nameOf }: { entry: LeadDirectoryEntry; nameOf: Name
 function FullLead({ lead, canDelete, nameOf, config }: { lead: Lead; canDelete: boolean; nameOf: NameOf; config: AppConfig }) {
   const owner = nameOf(lead.ownerId);
   const points = stagePointsOf(config);
-  const dropReason = config.dropReasons.find((r) => r.id === lead.dropReasonId)?.label;
+  const dropReason = config.dropReasons.find((r) => r.id === lead.dropReasonId);
   const allowed = allowedNextStages(lead.stage);
   const workable = isWorkableStage(lead.stage);
   const mainActions =
@@ -141,6 +142,7 @@ function FullLead({ lead, canDelete, nameOf, config }: { lead: Lead; canDelete: 
               <StageStepper history={lead.stageHistory} />
             </CardContent>
           </Card>
+          <StageTimeCard lead={lead} labels={stageLabelsOf(config)} />
           <Card>
             <CardHeader>
               <CardTitle>Activity</CardTitle>
@@ -167,9 +169,9 @@ function FullLead({ lead, canDelete, nameOf, config }: { lead: Lead; canDelete: 
           {lead.stage === "lost" && dropReason && (
             <Card>
               <CardHeader>
-                <CardTitle>Why it is lost or deprioritised</CardTitle>
+                <CardTitle>{dropReason.kind === "stuck" ? "Deprioritised: why it is stuck" : "Why it was lost"}</CardTitle>
                 <CardDescription>
-                  {dropReason}
+                  {dropReason.label}
                   {lead.dropNote && <span className="mt-1 block">{lead.dropNote}</span>}
                 </CardDescription>
               </CardHeader>
@@ -214,6 +216,9 @@ function FullLead({ lead, canDelete, nameOf, config }: { lead: Lead; canDelete: 
                 <Detail label="Deal value">
                   <span className="tabular-nums">{lead.dealValue > 0 ? formatINR(lead.dealValue) : "—"}</span>
                 </Detail>
+                {lead.competitor && <Detail label="Competitor">{lead.competitor}</Detail>}
+                {lead.useCase && <Detail label="Use case">{lead.useCase}</Detail>}
+                {lead.direction && <Detail label="Direction">{lead.direction}</Detail>}
                 <Detail label="Owner">{owner}</Detail>
                 <Detail label="Lead source">{SOURCE_LABELS[lead.source]}</Detail>
                 {lead.sourceStatus && <Detail label="Status in source tracker">{lead.sourceStatus}</Detail>}

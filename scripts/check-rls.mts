@@ -130,9 +130,11 @@ check("…and moving past stage 1 dates the discovery", Boolean(dated.data?.disc
 
 const noReason = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "lost", p_note: "Later" });
 check("Lost / Deprioritised needs a reason from the list", /Pick a reason/.test(noReason.error?.message ?? ""), noReason.error?.message);
-const anyReason = await priya.from("drop_reasons").select("id, label").eq("active", true).limit(1).single();
+const anyReason = await priya.from("drop_reasons").select("id, label").eq("active", true).eq("kind", "stuck").limit(1).single();
 const dropped = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "lost", p_reason_id: anyReason.data!.id, p_lost_reason: "Budget in April" });
-check("Priya drops it with a reason", !dropped.error, dropped.error?.message);
+check("Priya deprioritises it with a Why stuck reason", !dropped.error, dropped.error?.message);
+const droppedNote = await priya.from("lead_activities").select("description").eq("lead_id", tempId).eq("type", "stage_change").order("at", { ascending: false }).limit(1).single();
+check("…and the activity says it is stuck", droppedNote.data?.description.includes("Stuck - ") === true, droppedNote.data?.description);
 const why = await priya.from("leads").select("drop_reason_id, drop_note, closed_at").eq("id", tempId).single();
 check("…and the reason and details are stored, and it is closed", why.data?.drop_reason_id === anyReason.data!.id && why.data?.drop_note === "Budget in April" && Boolean(why.data?.closed_at), why.data);
 const reconnect = await priya.rpc("log_activity", { p_lead_id: tempId, p_type: "note", p_description: "Reconnect in April", p_date: why.data!.closed_at!.slice(0, 10) });
@@ -149,6 +151,13 @@ const paid = await priya.from("leads").select("closed_at").eq("id", tempId).sing
 check("Revenue generation keeps the win date", !paying.error && paid.data?.closed_at === signed.data?.closed_at, paying.error?.message);
 const backAgain = await priya.rpc("change_lead_stage", { p_lead_id: tempId, p_to: "lost", p_reason_id: anyReason.data!.id });
 check("…and is final", Boolean(backAgain.error), backAgain.error?.message);
+const unknownCompetitor = await priya.from("leads").update({ competitor: "Not a real competitor" }).eq("id", myLead).select("id");
+check("A competitor outside the master is refused", Boolean(unknownCompetitor.error), unknownCompetitor.error?.message);
+const setFields = await priya.from("leads").update({ competitor: "Haptik", use_case: "Sales call", direction: "Outbound" }).eq("id", myLead).select("id");
+check("Priya sets competitor, use case and direction on her account", !setFields.error && setFields.data!.length === 1, setFields.error?.message);
+await priya.from("leads").update({ competitor: null, use_case: null, direction: null }).eq("id", myLead);
+const agentCompetitor = await priya.from("competitors").insert({ name: "Agents cannot add this" }).select("name");
+check("An agent cannot add to the Competitors master", Boolean(agentCompetitor.error) || agentCompetitor.data!.length === 0, agentCompetitor.error?.message);
 const agentMaster = await priya.from("drop_reasons").insert({ label: "Agents cannot add this" }).select("id");
 check("An agent cannot add to the masters", Boolean(agentMaster.error) || agentMaster.data!.length === 0, agentMaster.error?.message);
 const agentPrice = await priya.from("app_settings").update({ price_per_minute: 1 }).eq("id", true).select("id");

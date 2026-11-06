@@ -126,6 +126,34 @@ export async function deleteCity(city: string): Promise<MasterResult> {
   return error ? dbError(error, "city") : done();
 }
 
+// Competitors, use cases and direction: accounts point at these, so a rename cascades --------------
+
+const nameLists = z.enum(["competitors", "use_cases", "directions"]);
+export type NameList = z.infer<typeof nameLists>;
+
+export async function saveNameItem(list: NameList, raw: unknown): Promise<MasterResult> {
+  if (!(await admin())) return DENIED;
+  const table = nameLists.safeParse(list);
+  if (!table.success) return { ok: false, error: "Unknown list" };
+  const parsed = citySchema.safeParse(raw);
+  if (!parsed.success) return invalid(parsed.error);
+  const v = parsed.data;
+  const supabase = await createClient();
+  const { error } = v.original
+    ? await supabase.from(table.data).update({ name: v.name, active: v.active }).eq("name", v.original)
+    : await supabase.from(table.data).insert({ name: v.name, active: v.active, position: 50 });
+  return error ? dbError(error, "entry") : done();
+}
+
+export async function deleteNameItem(list: NameList, name: string): Promise<MasterResult> {
+  if (!(await admin())) return DENIED;
+  const table = nameLists.safeParse(list);
+  if (!table.success) return { ok: false, error: "Unknown list" };
+  const supabase = await createClient();
+  const { error } = await supabase.from(table.data).delete().eq("name", name);
+  return error ? dbError(error, "entry") : done();
+}
+
 // Pricing -------------------------------------------------------------------------------------
 
 const price = z.number("Enter a price").min(0, "At least 0").max(1000);
@@ -186,6 +214,7 @@ export async function saveStage(raw: unknown): Promise<MasterResult> {
 
 const reasonSchema = z.object({
   id: z.number().int().positive().nullable(),
+  kind: z.enum(["lost", "stuck"]),
   label: z.string().trim().min(2, "Enter the reason").max(80, "Keep it under 80 characters"),
   active: z.boolean(),
 });
@@ -196,7 +225,7 @@ export async function saveReason(raw: unknown): Promise<MasterResult> {
   if (!parsed.success) return invalid(parsed.error);
   const v = parsed.data;
   const supabase = await createClient();
-  const row = { label: v.label, active: v.active };
+  const row = { label: v.label, kind: v.kind, active: v.active };
   const { error } = v.id
     ? await supabase.from("drop_reasons").update(row).eq("id", v.id)
     : await supabase.from("drop_reasons").insert({ ...row, position: 50 });

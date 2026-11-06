@@ -7,7 +7,11 @@ export const MASTER_TABS = [
   { value: "cities", label: "Cities" },
   { value: "pricing", label: "Pricing" },
   { value: "stages", label: "Stages" },
-  { value: "reasons", label: "Drop-off reasons" },
+  { value: "reasons", label: "Lost reasons" },
+  { value: "stuck", label: "Why stuck" },
+  { value: "competitors", label: "Competitors" },
+  { value: "use-cases", label: "Use cases" },
+  { value: "directions", label: "Direction" },
 ] as const;
 
 export type MasterTab = (typeof MASTER_TABS)[number]["value"];

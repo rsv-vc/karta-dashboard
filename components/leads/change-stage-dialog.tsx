@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { activeReasons, stageLabelsOf } from "@/lib/config";
+import { activeReasons, stageLabelsOf, type DropKind } from "@/lib/config";
 import { isWonStage } from "@/lib/constants";
 import { changeStageSchema, toFieldErrors } from "@/lib/leads/schemas";
 import type { LeadStage } from "@/types/lead";
@@ -50,12 +50,13 @@ export function ChangeStageDialog({
   const [to, setTo] = useState<LeadStage>(allowed[0]);
   const [note, setNote] = useState("");
   const [lostReason, setLostReason] = useState("");
+  const [dropKind, setDropKind] = useState<DropKind>("lost");
   const [reasonId, setReasonId] = useState("");
   const [finalDealValue, setFinalDealValue] = useState(String(dealValue));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
   const dropping = to === "lost";
-  const reasons = activeReasons(config);
+  const reasons = activeReasons(config, dropKind);
 
   function pick(stage: LeadStage) {
     setTo(stage);
@@ -87,6 +88,7 @@ export function ChangeStageDialog({
       setNote("");
       setLostReason("");
       setReasonId("");
+      setDropKind("lost");
       setErrors({});
     });
   }
@@ -120,8 +122,31 @@ export function ChangeStageDialog({
 
           {dropping ? (
             <>
+              <RadioGroup
+                value={dropKind}
+                onValueChange={(v) => {
+                  setDropKind(v as DropKind);
+                  // The two lists are different, so a reason from one does not carry over.
+                  setReasonId("");
+                }}
+                aria-label="Lost or deprioritised"
+                className="sm:grid-cols-2"
+              >
+                <Field orientation="horizontal">
+                  <RadioGroupItem value="lost" id="drop-kind-lost" />
+                  <FieldLabel htmlFor="drop-kind-lost" className="font-normal">
+                    Lost
+                  </FieldLabel>
+                </Field>
+                <Field orientation="horizontal">
+                  <RadioGroupItem value="stuck" id="drop-kind-stuck" />
+                  <FieldLabel htmlFor="drop-kind-stuck" className="font-normal">
+                    Deprioritised (stuck)
+                  </FieldLabel>
+                </Field>
+              </RadioGroup>
               <Field data-invalid={Boolean(errors.reasonId)}>
-                <FieldLabel htmlFor="dropReason">Why is it lost or deprioritised?</FieldLabel>
+                <FieldLabel htmlFor="dropReason">{dropKind === "lost" ? "Why was it lost?" : "Why is it stuck?"}</FieldLabel>
                 <Select value={reasonId} onValueChange={setReasonId}>
                   <SelectTrigger id="dropReason" aria-invalid={Boolean(errors.reasonId)} className="w-full">
                     <SelectValue placeholder="Pick a reason" />
@@ -143,7 +168,7 @@ export function ChangeStageDialog({
                   rows={2}
                   value={lostReason}
                   onChange={(e) => setLostReason(e.target.value)}
-                  placeholder="Went with a competitor on price; revisit after their budget cycle in April"
+                  placeholder={dropKind === "lost" ? "Went with a competitor on price" : "Revisit after their budget cycle in April"}
                 />
                 <FieldError>{errors.lostReason}</FieldError>
               </Field>

@@ -218,14 +218,23 @@ export function FunnelCard({ f, openFixes }: { f: FunnelInsight; openFixes: numb
 export function DeadLeads({ insights }: { insights: Insights }) {
   const maxStage = Math.max(1, ...insights.lostAtStage.map((s) => s.count));
   return (
-    <div className="grid gap-6 *:min-w-0 xl:grid-cols-2">
+    <div className="grid gap-6 *:min-w-0 xl:grid-cols-3">
       <Card>
         <CardHeader>
-          <CardTitle>Lost / Deprioritised: why</CardTitle>
-          <CardDescription>Every account at this stage, by reason, with its deal value.</CardDescription>
+          <CardTitle>Lost: why</CardTitle>
+          <CardDescription>Accounts marked Lost, by reason, with their deal value.</CardDescription>
         </CardHeader>
         <CardContent>
-          <ReasonBars reasons={insights.lostReasons} empty="No lost or deprioritised accounts." />
+          <ReasonBars reasons={insights.lostReasons} empty="No lost accounts." />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Deprioritised: why stuck</CardTitle>
+          <CardDescription>Accounts marked Deprioritised, by reason. These are the ones to revisit.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ReasonBars reasons={insights.stuckReasons} empty="No deprioritised accounts." />
         </CardContent>
       </Card>
       <Card>
@@ -252,6 +261,49 @@ export function DeadLeads({ insights }: { insights: Insights }) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+const days = (n: number | null) => (n === null ? "–" : n.toFixed(1).replace(/\.0$/, ""));
+
+/** Average days per stage. Finished and still-running stays stay apart: the second are still growing. */
+export function StageDaysTable({ rows, finishedStays }: { rows: Insights["stageDays"]; finishedStays: number }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Average days in each stage</CardTitle>
+        <CardDescription>
+          How long accounts take before moving on, and how long those there now have been waiting. Based on {finishedStays} finished{" "}
+          {finishedStays === 1 ? "stay" : "stays"} so far; accounts imported from the tracker count from their import, so these firm up as accounts move.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table scrollLabel="Average days in each stage">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10">#</TableHead>
+              <TableHead>Stage</TableHead>
+              <TableHead className="text-right">Moved on</TableHead>
+              <TableHead className="text-right">Avg days before moving on</TableHead>
+              <TableHead className="text-right">There now</TableHead>
+              <TableHead className="text-right">Avg days so far</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r, i) => (
+              <TableRow key={r.stage}>
+                <TableCell className="text-muted-foreground tabular-nums">{i + 1}</TableCell>
+                <TableCell className="font-medium whitespace-nowrap">{r.label}</TableCell>
+                <TableCell className={NUM}>{r.movedOn}</TableCell>
+                <TableCell className={cn(NUM, "font-medium")}>{days(r.avgDaysMovedOn)}</TableCell>
+                <TableCell className={NUM}>{r.inStage}</TableCell>
+                <TableCell className={NUM}>{days(r.avgDaysSoFar)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 

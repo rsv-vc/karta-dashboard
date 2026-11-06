@@ -2,6 +2,7 @@ import type { DropReason } from "@/lib/config";
 import { PIPELINE_ORDER, SOURCE_LABELS, STAGE_LABELS, isActiveStage, isWonStage } from "@/lib/constants";
 import { FUNNELS } from "@/lib/dashboard/funnel-health";
 import { discoveryHeld } from "@/lib/dashboard/mis";
+import { averageStageDays, type StageAverage } from "@/lib/dashboard/stage-time";
 import { daysBetween, toDateKey } from "@/lib/dates";
 import type { Lead, LeadSource, LeadStage } from "@/types/lead";
 
@@ -108,7 +109,12 @@ export interface Insights {
   bySegment: BreakdownRow[];
   bySource: BreakdownRow[];
   funnels: FunnelInsight[];
+  /** Marked Lost, and marked Deprioritised, by reason (accounts with no reason recorded count as lost). */
   lostReasons: ReasonCount[];
+  stuckReasons: ReasonCount[];
+  /** Average days in each stage, and how many stays have finished (the averages rest on these). */
+  stageDays: StageAverage[];
+  finishedStays: number;
   /** Lost accounts by the furthest stage they reached. */
   lostAtStage: { stage: LeadStage; label: string; count: number; value: number }[];
   cohorts: CohortRow[];
@@ -134,6 +140,8 @@ export function computeInsights(
 ): Insights {
   const labels = o.labels ?? STAGE_LABELS;
   const reasonLabel = new Map(o.reasons.map((r) => [r.id, r.label]));
+  const reasonKind = new Map(o.reasons.map((r) => [r.id, r.kind]));
+  const stageDays = averageStageDays(leads, o.today, labels);
   const open = leads.filter((l) => isActiveStage(l.stage));
   const won = leads.filter((l) => isWonStage(l.stage));
   const lost = leads.filter((l) => l.stage === "lost");
@@ -268,7 +276,10 @@ export function computeInsights(
     bySegment: breakdown((l) => l.industry || "Not set", (k) => k),
     bySource: breakdown((l) => l.source, (k) => SOURCE_LABELS[k as LeadSource] ?? k),
     funnels,
-    lostReasons: reasonCounts(lost),
+    lostReasons: reasonCounts(lost.filter((l) => reasonKind.get(l.dropReasonId ?? -1) !== "stuck")),
+    stuckReasons: reasonCounts(lost.filter((l) => reasonKind.get(l.dropReasonId ?? -1) === "stuck")),
+    stageDays,
+    finishedStays: stageDays.reduce((n, s) => n + s.movedOn, 0),
     lostAtStage,
     cohorts,
   };

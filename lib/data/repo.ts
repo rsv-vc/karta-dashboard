@@ -48,18 +48,24 @@ export const fetchTeam = cache(async (): Promise<Member[]> => {
 export const fetchAppConfig = cache(async (): Promise<AppConfig> => {
   await connection();
   const supabase = await createClient();
-  const [industries, cities, settings, stages, reasons] = await Promise.all([
+  const [industries, cities, settings, stages, reasons, competitors, useCases, directions] = await Promise.all([
     supabase.from("industries").select("*").order("position").order("name"),
     supabase.from("cities").select("*").order("position").order("name"),
     supabase.from("app_settings").select("price_per_minute, price_low, price_high, minutes_per_call, contract_months").single(),
     supabase.from("stage_settings").select("*"),
     supabase.from("drop_reasons").select("*").order("position").order("label"),
+    supabase.from("competitors").select("*").order("position").order("name"),
+    supabase.from("use_cases").select("*").order("position").order("name"),
+    supabase.from("directions").select("*").order("position").order("name"),
   ]);
   if (industries.error) fail("industries", industries.error);
   if (cities.error) fail("cities", cities.error);
   if (settings.error) fail("pricing", settings.error);
   if (stages.error) fail("stages", stages.error);
   if (reasons.error) fail("drop-off reasons", reasons.error);
+  if (competitors.error) fail("competitors", competitors.error);
+  if (useCases.error) fail("use cases", useCases.error);
+  if (directions.error) fail("directions", directions.error);
   const s = settings.data;
   return {
     industries: industries.data.map((i) => ({
@@ -80,7 +86,10 @@ export const fetchAppConfig = cache(async (): Promise<AppConfig> => {
       ...DEFAULT_APP_CONFIG.stages,
       ...Object.fromEntries(stages.data.map((r) => [r.stage, { label: r.label, points: r.points }])),
     },
-    dropReasons: reasons.data.map((r) => ({ id: r.id, label: r.label, active: r.active })),
+    dropReasons: reasons.data.map((r) => ({ id: r.id, label: r.label, kind: r.kind, active: r.active })),
+    competitors: competitors.data.filter((c) => c.active).map((c) => c.name),
+    useCases: useCases.data.filter((c) => c.active).map((c) => c.name),
+    directions: directions.data.filter((c) => c.active).map((c) => c.name),
   };
 });
 

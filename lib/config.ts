@@ -28,9 +28,13 @@ export interface StageConfigEntry {
   points: number;
 }
 
+/** Which list a reason is on: why an account was lost, or why it is stuck (deprioritised). */
+export type DropKind = "lost" | "stuck";
+
 export interface DropReason {
   id: number;
   label: string;
+  kind: DropKind;
   active: boolean;
 }
 
@@ -40,6 +44,10 @@ export interface AppConfig {
   pricing: PricingConfig;
   stages: Record<LeadStage, StageConfigEntry>;
   dropReasons: DropReason[];
+  /** Active entries of the Competitors, Use cases and Direction masters. */
+  competitors: string[];
+  useCases: string[];
+  directions: string[];
 }
 
 const DEFAULT_AVERAGES: Record<string, number> = {
@@ -60,6 +68,9 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     StageConfigEntry
   >,
   dropReasons: [],
+  competitors: [],
+  useCases: [],
+  directions: [],
 };
 
 export const stageLabelsOf = (config: Pick<AppConfig, "stages">) =>
@@ -68,9 +79,9 @@ export const stageLabelsOf = (config: Pick<AppConfig, "stages">) =>
 export const stagePointsOf = (config: Pick<AppConfig, "stages">) =>
   Object.fromEntries(Object.entries(config.stages).map(([k, v]) => [k, v.points])) as Record<LeadStage, number>;
 
-/** Reasons offered when moving an account to Lost / Deprioritised. */
-export function activeReasons(config: Pick<AppConfig, "dropReasons">): DropReason[] {
-  return config.dropReasons.filter((r) => r.active);
+/** Reasons offered when moving an account to Lost / Deprioritised, from one list. */
+export function activeReasons(config: Pick<AppConfig, "dropReasons">, kind: DropKind): DropReason[] {
+  return config.dropReasons.filter((r) => r.active && r.kind === kind);
 }
 
 export const activeIndustries = (config: Pick<AppConfig, "industries">) => config.industries.filter((i) => i.active).map((i) => i.name);

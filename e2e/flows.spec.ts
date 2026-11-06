@@ -53,6 +53,9 @@ test("agent creates a lead through the duplicate warning", async ({ page }) => {
   await expect(page.getByText("1,00,000 min / month").first()).toBeVisible();
   await expect(page.getByText("₹36,00,000").first()).toBeVisible();
   await page.getByLabel("Next step", { exact: true }).fill("Discovery call");
+  await pick(page, "Competitor (optional)", "Haptik");
+  await pick(page, "Use case (optional)", "Sales call");
+  await pick(page, "Direction (optional)", "Outbound");
 
   // "Zenith Retail …" matches the seeded Zenith leads: a masked warning appears.
   const confirm = page.getByLabel(/this is a different company/);
@@ -67,6 +70,8 @@ test("agent creates a lead through the duplicate warning", async ({ page }) => {
   await expect(page.getByRole("heading", { name: COMPANY })).toBeVisible();
   // Score = Intro/Discovery 5 + 10 + 7 + 3 = 25 → Warm.
   await expect(page.getByText("Warm · 25").first()).toBeVisible();
+  await expect(page.getByText("Haptik").first()).toBeVisible();
+  await expect(page.getByText("Days in each stage")).toBeVisible();
   // The account page shows the same calculation.
   await expect(page.getByText("₹36,00,000").first()).toBeVisible();
 });
@@ -134,11 +139,11 @@ test("admin allocates it, exports CSV and deletes it", async ({ page }) => {
   await page.getByLabel("Mark as Lost / Deprioritised").check();
   await page.getByRole("dialog").getByRole("button", { name: "Mark as Lost / Deprioritised" }).click();
   await expect(page.getByText("Pick a reason from the list")).toBeVisible();
-  await pick(page, "Why is it lost or deprioritised?", "Chose another vendor");
+  await pick(page, "Why was it lost?", "Chose competitor");
   await page.getByRole("dialog").getByRole("button", { name: "Mark as Lost / Deprioritised" }).click();
   await expect(page.getByText("Moved to Lost / Deprioritised")).toBeVisible();
-  await expect(page.getByText("Why it is lost or deprioritised")).toBeVisible();
-  await expect(page.getByText("Chose another vendor").first()).toBeVisible();
+  await expect(page.getByText("Why it was lost")).toBeVisible();
+  await expect(page.getByText("Chose competitor").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Delete lead" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Delete lead" }).click();
@@ -165,14 +170,19 @@ test("admin: masters, investor view and notifications", async ({ page }) => {
   await settled(page);
   await expect(page.getByRole("tab", { name: "Industries", selected: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Edit Bank" })).toBeVisible();
-  await page.getByRole("tab", { name: "Drop-off reasons" }).click();
+  await page.getByRole("tab", { name: "Lost reasons" }).click();
   await expect(page).toHaveURL(/tab=reasons/);
-  await expect(page.getByText("Chose another vendor").first()).toBeVisible();
+  await expect(page.getByText("Chose competitor").first()).toBeVisible();
+  await page.getByRole("tab", { name: "Why stuck" }).click();
+  await expect(page.getByText("Client testing on own").first()).toBeVisible();
+  await page.getByRole("tab", { name: "Competitors" }).click();
+  await expect(page.getByText("Yellow.ai").first()).toBeVisible();
 
   await page.goto("/insights");
   await settled(page);
   await expect(page.getByRole("heading", { name: "Funnels & drop-offs" })).toBeVisible();
   await expect(page.getByText("POC accepted → agreement").first()).toBeVisible();
+  await expect(page.getByText("Average days in each stage")).toBeVisible();
 
   await page.getByRole("button", { name: /^Notifications/ }).click();
   await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();

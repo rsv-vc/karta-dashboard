@@ -74,6 +74,9 @@ type LeadRow = {
   responsiveness: number;
   source: Enums["lead_source"];
   source_status: string | null;
+  competitor: string | null;
+  use_case: string | null;
+  direction: string | null;
   stage: Enums["lead_stage"];
   timing_budget: number;
   updated_at: string;
@@ -111,7 +114,8 @@ type MaskedLead = { company_name: string; id: string; owner_id: string; poc_name
 type IndustryRow = { name: string; avg_calls_per_month: number | null; minutes_per_call: number; position: number; active: boolean };
 type CityRow = { name: string; position: number; active: boolean };
 type StageSettingRow = { stage: Enums["lead_stage"]; label: string; points: number };
-type DropReasonRow = { id: number; label: string; position: number; active: boolean };
+type DropReasonRow = { id: number; label: string; kind: "lost" | "stuck"; position: number; active: boolean };
+type NameListRow = { name: string; position: number; active: boolean };
 type SettingsRow = {
   company_domains: string[];
   id: boolean;
@@ -145,6 +149,24 @@ export type Database = {
         Row: CityRow;
         Insert: Partial<CityRow> & Pick<CityRow, "name">;
         Update: Partial<CityRow>;
+        Relationships: [];
+      };
+      competitors: {
+        Row: NameListRow;
+        Insert: Partial<NameListRow> & Pick<NameListRow, "name">;
+        Update: Partial<NameListRow>;
+        Relationships: [];
+      };
+      use_cases: {
+        Row: NameListRow;
+        Insert: Partial<NameListRow> & Pick<NameListRow, "name">;
+        Update: Partial<NameListRow>;
+        Relationships: [];
+      };
+      directions: {
+        Row: NameListRow;
+        Insert: Partial<NameListRow> & Pick<NameListRow, "name">;
+        Update: Partial<NameListRow>;
         Relationships: [];
       };
       drop_reasons: {

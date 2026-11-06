@@ -5,12 +5,15 @@ import { useState, type ReactNode } from "react";
 import {
   deleteCity,
   deleteIndustry,
+  deleteNameItem,
   deleteReason,
   saveCity,
   saveIndustry,
+  saveNameItem,
   savePricing,
   saveReason,
   saveStage,
+  type NameList,
 } from "@/app/(app)/masters/actions";
 import { MasterDialog, numberOrNull, useMasterForm } from "@/components/masters/master-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +23,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { CityMaster, IndustryMaster, MastersData, ReasonMaster, StageMaster } from "@/lib/data/masters";
+import type { DropKind } from "@/lib/config";
+import type { IndustryMaster, MastersData, NameMaster, ReasonMaster, StageMaster } from "@/lib/data/masters";
 import { formatNumber } from "@/lib/utils";
 
 function accountsLabel(n: number) {
@@ -213,7 +217,7 @@ export function IndustriesCard({ industries }: { industries: IndustryMaster[] })
 
 type CityDraft = { original: string; name: string; active: boolean; accounts: number };
 
-export function CitiesCard({ cities }: { cities: CityMaster[] }) {
+export function CitiesCard({ cities }: { cities: NameMaster[] }) {
   const [draft, setDraft] = useState<CityDraft | null>(null);
   const { errors, pending, run } = useMasterForm(() => setDraft(null));
 
@@ -251,6 +255,62 @@ export function CitiesCard({ cities }: { cities: CityMaster[] }) {
             <FieldError>{errors.name}</FieldError>
           </Field>
           <ActiveField checked={draft.active} onChange={(active) => setDraft({ ...draft, active })} hint="Inactive cities are no longer suggested." />
+        </MasterDialog>
+      )}
+    </MasterCard>
+  );
+}
+
+// Competitors, use cases, direction --------------------------------------------------------------
+
+type NameDraft = { original: string; name: string; active: boolean; accounts: number };
+
+export function NameListCard({
+  list,
+  title,
+  description,
+  noun,
+  items,
+}: {
+  list: NameList;
+  title: string;
+  description: string;
+  noun: string;
+  items: NameMaster[];
+}) {
+  const [draft, setDraft] = useState<NameDraft | null>(null);
+  const { errors, pending, run } = useMasterForm(() => setDraft(null));
+  const fieldId = `${list}-name`;
+
+  return (
+    <MasterCard title={title} description={description} onAdd={() => setDraft({ original: "", name: "", active: true, accounts: 0 })} addLabel={`Add ${noun}`}>
+      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((c) => (
+          <li key={c.name} className="flex items-center gap-2 rounded-lg border py-1 pr-1 pl-3">
+            <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
+            <Status active={c.active} />
+            <span className="text-sm text-muted-foreground tabular-nums">{c.accounts}</span>
+            <EditButton label={`Edit ${c.name}`} onClick={() => setDraft({ original: c.name, name: c.name, active: c.active, accounts: c.accounts })} />
+          </li>
+        ))}
+      </ul>
+
+      {draft && (
+        <MasterDialog
+          open
+          onOpenChange={(o) => !o && setDraft(null)}
+          title={draft.original ? `Edit ${draft.original}` : `Add ${noun}`}
+          description={draft.accounts > 0 ? `${accountsLabel(draft.accounts)} use it; a new name is applied to them too.` : undefined}
+          pending={pending}
+          onSubmit={() => run(() => saveNameItem(list, { original: draft.original, name: draft.name, active: draft.active }), "Saved")}
+          footer={draft.original && <DeleteButton inUse={draft.accounts} pending={pending} onClick={() => run(() => deleteNameItem(list, draft.original), "Deleted")} />}
+        >
+          <Field data-invalid={Boolean(errors.name)}>
+            <FieldLabel htmlFor={fieldId}>Name</FieldLabel>
+            <Input id={fieldId} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+            <FieldError>{errors.name}</FieldError>
+          </Field>
+          <ActiveField checked={draft.active} onChange={(active) => setDraft({ ...draft, active })} hint="Inactive entries stay on their accounts but are no longer offered." />
         </MasterDialog>
       )}
     </MasterCard>
@@ -415,18 +475,33 @@ export function StagesCard({ stages }: { stages: StageMaster[] }) {
 
 type ReasonDraft = { id: number | null; label: string; active: boolean; accounts: number };
 
-export function ReasonsCard({ reasons }: { reasons: ReasonMaster[] }) {
+const REASON_COPY: Record<DropKind, { title: string; description: string; add: string; table: string }> = {
+  lost: {
+    title: "Lost reasons",
+    description: "Picked (required) when an account is marked Lost. The Investor view breaks lost accounts down by these.",
+    add: "Add lost reason",
+    table: "Lost reasons",
+  },
+  stuck: {
+    title: "Why stuck",
+    description: "Picked (required) when an account is marked Deprioritised. The Investor view breaks deprioritised accounts down by these.",
+    add: "Add stuck reason",
+    table: "Why stuck",
+  },
+};
+
+export function ReasonsCard({ kind, reasons }: { kind: DropKind; reasons: ReasonMaster[] }) {
   const [draft, setDraft] = useState<ReasonDraft | null>(null);
   const { errors, pending, run } = useMasterForm(() => setDraft(null));
 
   return (
     <MasterCard
-      title="Drop-off reasons"
-      description="Picked (required) when an account moves to Lost / Deprioritised. The Investor view breaks drop-offs down by these."
+      title={REASON_COPY[kind].title}
+      description={REASON_COPY[kind].description}
       onAdd={() => setDraft({ id: null, label: "", active: true, accounts: 0 })}
-      addLabel="Add reason"
+      addLabel={REASON_COPY[kind].add}
     >
-      <Table scrollLabel="Drop-off reasons">
+      <Table scrollLabel={REASON_COPY[kind].table}>
         <TableHeader>
           <TableRow>
             <TableHead>Reason</TableHead>
@@ -447,7 +522,7 @@ export function ReasonsCard({ reasons }: { reasons: ReasonMaster[] }) {
               </TableCell>
               <TableCell className="text-right tabular-nums">{r.accounts}</TableCell>
               <TableCell>
-                <EditButton label={`Edit ${r.label}`} onClick={() => setDraft({ ...r })} />
+                <EditButton label={`Edit ${r.label}`} onClick={() => setDraft({ id: r.id, label: r.label, active: r.active, accounts: r.accounts })} />
               </TableCell>
             </TableRow>
           ))}
@@ -461,13 +536,13 @@ export function ReasonsCard({ reasons }: { reasons: ReasonMaster[] }) {
           title={draft.id ? "Edit reason" : "Add reason"}
           pending={pending}
           onSubmit={() =>
-            run(() => saveReason({ id: draft.id, label: draft.label, active: draft.active }), draft.id ? "Reason saved" : "Reason added")
+            run(() => saveReason({ id: draft.id, kind, label: draft.label, active: draft.active }), draft.id ? "Reason saved" : "Reason added")
           }
           footer={draft.id && <DeleteButton inUse={draft.accounts} pending={pending} onClick={() => run(() => deleteReason(draft.id!), "Reason deleted")} />}
         >
           <Field data-invalid={Boolean(errors.label)}>
-            <FieldLabel htmlFor="reason-label">Reason</FieldLabel>
-            <Input id="reason-label" value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} />
+            <FieldLabel htmlFor={`reason-label-${kind}`}>Reason</FieldLabel>
+            <Input id={`reason-label-${kind}`} value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} />
             <FieldError>{errors.label}</FieldError>
           </Field>
           <ActiveField checked={draft.active} onChange={(active) => setDraft({ ...draft, active })} hint="Inactive reasons stay on past accounts but are no longer offered." />

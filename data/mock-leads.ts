@@ -529,6 +529,9 @@ function misFields(stage: LeadStage, history: StageHistoryEntry[]) {
     discoveryMonth: discoveryDate?.slice(0, 7) ?? null,
     nextStep: isActiveStage(stage) ? misRng.pick(NEXT_STEPS) : "",
     sourceStatus: null,
+    competitor: null,
+    useCase: null,
+    direction: null,
     dropReasonId: null,
     dropNote: "",
   };

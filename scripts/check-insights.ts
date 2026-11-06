@@ -7,6 +7,7 @@ import { DEFAULT_APP_CONFIG, activeReasons, stageLabelsOf, stagePointsOf } from 
 import { PIPELINE_ORDER, TODAY, isActiveStage } from "@/lib/constants";
 import { ACTION_LIMIT, computeHome, previousMonth } from "@/lib/dashboard/home";
 import { computeInsights, furthestStage } from "@/lib/dashboard/insights";
+import { averageStageDays, daysInStages } from "@/lib/dashboard/stage-time";
 import { calculateDeal } from "@/lib/deal-calculator";
 import { buildNotifications } from "@/lib/notifications";
 import { STAGE_POINTS, leadScore } from "@/lib/scoring";
@@ -19,10 +20,10 @@ function check(label: string, ok: boolean) {
 }
 
 const REASONS = [
-  { id: 1, label: "Price too high", active: true },
-  { id: 2, label: "Chose another vendor", active: true },
-  { id: 3, label: "Timing: revisit next quarter", active: true },
-  { id: 4, label: "Retired", active: false },
+  { id: 1, label: "Pricing", kind: "lost" as const, active: true },
+  { id: 2, label: "Chose competitor", kind: "lost" as const, active: true },
+  { id: 3, label: "Scheduling", kind: "stuck" as const, active: true },
+  { id: 4, label: "Retired", kind: "lost" as const, active: false },
 ];
 const config = { ...DEFAULT_APP_CONFIG, dropReasons: REASONS };
 
@@ -30,7 +31,7 @@ const config = { ...DEFAULT_APP_CONFIG, dropReasons: REASONS };
 console.log("Masters config");
 check("default stage points match the scoring guide", Object.entries(stagePointsOf(config)).every(([s, p]) => STAGE_POINTS[s as keyof typeof STAGE_POINTS] === p));
 check("stage labels cover every stage", Object.keys(stageLabelsOf(config)).length === Object.keys(STAGE_POINTS).length);
-check("active reasons only, not retired ones", activeReasons(config).map((r) => r.id).join() === "1,2,3");
+check("each list offers its active reasons only", activeReasons(config, "lost").map((r) => r.id).join() === "1,2" && activeReasons(config, "stuck").map((r) => r.id).join() === "3");
 const renamed = { ...config.stages, revenue_generation: { label: "Paid", points: 20 } };
 check("custom stage points change the score", leadScore({ stage: "revenue_generation", responsiveness: 0, decisionAccess: 0, timingBudget: 0 }, stagePointsOf({ stages: renamed })) === 20);
 const custom = { industries: [{ name: "Bank", avgCallsPerMonth: 100, minutesPerCall: 2, active: true }], pricing: { ...config.pricing, pricePerMinute: 10, contractMonths: 6 } };
@@ -78,13 +79,37 @@ const handed: Lead = {
 const handFeed = buildNotifications([handed], { viewerId: U.priya, viewerName: "Priya Sharma", isAdmin: false, today: TODAY, nameOf, target: { wonValue: 0, newLeads: 0 }, seenAt: null });
 check("an account handed over shows up", handFeed.items.some((n) => n.id === "handover-a1"));
 
+// Days in each stage ---------------------------------------------------------------------------
+console.log("\nDays in each stage");
+const STAY = (stage: Lead["stage"], startDate: string, endDate: string | null) => ({ stage, startDate, endDate });
+const walked = daysInStages(
+  [
+    STAY("intro_discovery", "2026-10-01T10:00:00+05:30", "2026-10-11T10:00:00+05:30"),
+    STAY("lost", "2026-10-11T10:00:00+05:30", "2026-10-16T10:00:00+05:30"),
+    STAY("intro_discovery", "2026-10-16T10:00:00+05:30", "2026-10-18T10:00:00+05:30"),
+    STAY("poc_live", "2026-10-18T10:00:00+05:30", null),
+  ],
+  "2026-10-28",
+);
+const dayRow = (s: Lead["stage"]) => walked.find((r) => r.stage === s);
+check("a re-opened stage adds up (10 + 2)", dayRow("intro_discovery")?.days === 12);
+check("the current stage counts to today, marked current", dayRow("poc_live")?.days === 10 && dayRow("poc_live")?.current === true);
+check("a stage never reached has no days", dayRow("product_demo")?.days === null);
+check("Lost / Deprioritised shows only if visited", dayRow("lost")?.days === 5 && !daysInStages([STAY("poc_live", "2026-10-18T10:00:00+05:30", null)], "2026-10-28").some((r) => r.stage === "lost"));
+const avgs = averageStageDays(mockLeads, TODAY);
+check("averages cover all eight stages", avgs.length === 8);
+check("everyone now in a stage is counted once", avgs.reduce((n, a) => n + a.inStage, 0) === mockLeads.length);
+check("no finished stays means no average, not zero", averageStageDays([], TODAY).every((a) => a.avgDaysMovedOn === null && a.avgDaysSoFar === null));
+
 // Investor view -------------------------------------------------------------------------------
 console.log("\nInvestor view");
 const lostOne = mockLeads.find((l) => l.stage === "lost")!;
-const leads = mockLeads.map((l) => (l.id === lostOne.id ? { ...l, dropReasonId: 2 } : l));
+const stuckOne = mockLeads.filter((l) => l.stage === "lost")[1];
+const leads = mockLeads.map((l) => (l.id === lostOne.id ? { ...l, dropReasonId: 2 } : l.id === stuckOne.id ? { ...l, dropReasonId: 3 } : l));
 const ins = computeInsights(leads, { today: TODAY, reasons: REASONS });
-check("lost reasons add up to lost accounts", ins.lostReasons.reduce((n, r) => n + r.count, 0) === leads.filter((l) => l.stage === "lost").length);
-check("a recorded reason is counted under its label", ins.lostReasons.some((r) => r.label === "Chose another vendor" && r.count >= 1));
+check("lost + stuck reasons add up to stage 8", ins.lostReasons.reduce((n, r) => n + r.count, 0) + ins.stuckReasons.reduce((n, r) => n + r.count, 0) === leads.filter((l) => l.stage === "lost").length);
+check("a stuck reason is counted as deprioritised, not lost", ins.stuckReasons.some((r) => r.label === "Scheduling" && r.count === 1) && !ins.lostReasons.some((r) => r.label === "Scheduling"));
+check("a recorded reason is counted under its label", ins.lostReasons.some((r) => r.label === "Chose competitor" && r.count >= 1));
 check("unrecorded reasons sort last", ins.lostReasons.findIndex((r) => r.reasonId === null) === -1 || ins.lostReasons[ins.lostReasons.length - 1].reasonId === null);
 check("funnel conversion never exceeds entries", ins.funnels.every((f) => f.converted <= f.entered));
 check("each funnel's entries = converted + in progress + dropped", ins.funnels.every((f) => f.entered === f.converted + f.inProgress + f.dropped));

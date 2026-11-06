@@ -10,6 +10,7 @@ import {
   RevenueByMonth,
   RevenueTiles,
   SectionHeading,
+  StageDaysTable,
 } from "@/components/insights/insights-sections";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
@@ -74,6 +75,7 @@ async function InsightsContent() {
           <FunnelCard key={f.id} f={f} openFixes={openFixes(f.id)} />
         ))}
       </div>
+      <StageDaysTable rows={insights.stageDays} finishedStays={insights.finishedStays} />
       <DeadLeads insights={insights} />
       <FunnelHealth actions={actions} canEdit />
 

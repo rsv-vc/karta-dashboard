@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
-import { CitiesCard, IndustriesCard, PricingCard, ReasonsCard, StagesCard } from "@/components/masters/master-cards";
+import { CitiesCard, IndustriesCard, NameListCard, PricingCard, ReasonsCard, StagesCard } from "@/components/masters/master-cards";
 import { MastersTabs } from "@/components/masters/masters-tabs";
 import { PageSkeleton } from "@/components/shared/page-skeleton";
 import { AddMemberDialog } from "@/components/team/add-member-dialog";
@@ -56,7 +56,35 @@ async function MastersContent({ searchParams }: { searchParams: Promise<Record<s
     cities: <CitiesCard cities={masters.cities} />,
     pricing: <PricingCard pricing={masters.pricing} />,
     stages: <StagesCard stages={masters.stages} />,
-    reasons: <ReasonsCard reasons={masters.reasons} />,
+    reasons: <ReasonsCard kind="lost" reasons={masters.reasons.filter((r) => r.kind === "lost")} />,
+    stuck: <ReasonsCard kind="stuck" reasons={masters.reasons.filter((r) => r.kind === "stuck")} />,
+    competitors: (
+      <NameListCard
+        list="competitors"
+        title="Competitors"
+        description="Who else the account is talking to, or already uses. Shown as a column on the lead list."
+        noun="competitor"
+        items={masters.competitors}
+      />
+    ),
+    "use-cases": (
+      <NameListCard
+        list="use_cases"
+        title="Use cases"
+        description="What the account wants the voice agent for. Shown as a column on the lead list."
+        noun="use case"
+        items={masters.useCases}
+      />
+    ),
+    directions: (
+      <NameListCard
+        list="directions"
+        title="Direction"
+        description="Whether the calls are inbound, outbound or both. Shown as a column on the lead list."
+        noun="direction"
+        items={masters.directions}
+      />
+    ),
   };
 
   return (

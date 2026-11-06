@@ -44,9 +44,18 @@ function invalid(error: z.ZodError): ActionResult {
 
 /** Turns a database error into a user-facing result (the functions raise readable messages). */
 function dbError(error: { message: string; code?: string }): ActionResult {
-  // 23503: the segment is not in the Industries master (renamed or removed meanwhile).
-  if (error.code === "23503" && error.message.includes("industry")) {
-    return { ok: false, error: "Pick a segment from the list", fieldErrors: { industry: "Pick a segment from the list" } };
+  // 23503: a value is not in its master (renamed or removed meanwhile).
+  if (error.code === "23503") {
+    const field = error.message.includes("industry")
+      ? "industry"
+      : error.message.includes("competitor")
+        ? "competitor"
+        : error.message.includes("use_case")
+          ? "useCase"
+          : error.message.includes("direction")
+            ? "direction"
+            : null;
+    if (field) return { ok: false, error: "Pick a value from the list", fieldErrors: { [field]: "Pick a value from the list" } };
   }
   return { ok: false, error: error.message || "Something went wrong. Please try again." };
 }
@@ -104,6 +113,9 @@ function detailColumns(input: LeadFormValues, config: CalculatorConfig) {
     decision_access: input.decisionAccess,
     timing_budget: input.timingBudget,
     next_step: input.nextStep.trim(),
+    competitor: input.competitor || null,
+    use_case: input.useCase || null,
+    direction: input.direction || null,
     notes: input.notes.trim(),
   };
 }

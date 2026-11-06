@@ -75,7 +75,7 @@ export function monthlyReportCsv(report: MonthlyReport): string {
 
 export function leadsCsv(leads: Lead[], nameOf: NameOf): string {
   const header = [
-    "Lead ID", "Company", "POC", "Designation", "Email", "Phone", "Industry", "City", "Source", "Stage",
+    "Lead ID", "Company", "POC", "Designation", "Email", "Phone", "Industry", "City", "Competitor", "Use case", "Direction", "Source", "Stage",
     "Priority", "Deal value (INR)", "Owner", "Created", "Last contact", "Next follow-up",
   ];
   const rows = leads.map((l) => [
@@ -87,6 +87,9 @@ export function leadsCsv(leads: Lead[], nameOf: NameOf): string {
     l.pocPhone,
     l.industry,
     l.city,
+    l.competitor,
+    l.useCase,
+    l.direction,
     SOURCE_LABELS[l.source],
     STAGE_LABELS[l.stage],
     PRIORITY_LABELS[l.priority],

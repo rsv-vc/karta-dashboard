@@ -52,6 +52,10 @@ export const leadFormSchema = z.object({
   decisionAccess: score(10),
   timingBudget: score(5),
   nextStep: z.string().trim().max(200, "Keep the next step under 200 characters"),
+  /** From the Competitors, Use cases and Direction masters (the database checks them); "" = not set. */
+  competitor: z.string().max(60),
+  useCase: z.string().max(60),
+  direction: z.string().max(60),
   /** When the first discovery meeting was held; "" = not yet. */
   discoveryDate: z.string().refine((v) => v === "" || (DATE_KEY.test(v) && v <= TODAY), "Pick today or an earlier date"),
   // Past dates are allowed here so an overdue lead can still be edited; new

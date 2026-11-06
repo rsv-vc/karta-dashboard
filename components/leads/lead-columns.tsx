@@ -26,6 +26,9 @@ export const LEAD_SORTABLE_IDS = [
   "nextFollowUp",
   "lastContact",
   "source",
+  "competitor",
+  "useCase",
+  "direction",
   "createdAt",
 ] as const;
 
@@ -145,6 +148,30 @@ export function getLeadColumns(showOwner: boolean) {
       cell: ({ getValue }) => <span className="whitespace-nowrap">{getValue()}</span>,
       sortFn: "text",
       meta: { label: "Source" },
+    }),
+    helper.accessor((r) => r.competitor ?? undefined, {
+      id: "competitor",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Competitor" />,
+      cell: ({ row }) => <span className="whitespace-nowrap">{row.original.competitor ?? "–"}</span>,
+      sortFn: "text",
+      sortUndefined: "last",
+      meta: { label: "Competitor" },
+    }),
+    helper.accessor((r) => r.useCase ?? undefined, {
+      id: "useCase",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Use case" />,
+      cell: ({ row }) => <span className="whitespace-nowrap">{row.original.useCase ?? "–"}</span>,
+      sortFn: "text",
+      sortUndefined: "last",
+      meta: { label: "Use case" },
+    }),
+    helper.accessor((r) => r.direction ?? undefined, {
+      id: "direction",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Direction" />,
+      cell: ({ row }) => <span className="whitespace-nowrap">{row.original.direction ?? "–"}</span>,
+      sortFn: "text",
+      sortUndefined: "last",
+      meta: { label: "Direction" },
     }),
     helper.accessor("createdAt", {
       id: "createdAt",

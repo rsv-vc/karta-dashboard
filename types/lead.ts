@@ -84,6 +84,10 @@ export interface Lead {
   nextStep: string;
   /** Raw status from an imported source tracker (read only). */
   sourceStatus: string | null;
+  /** From the Competitors, Use cases and Direction masters; null = not set. */
+  competitor: string | null;
+  useCase: string | null;
+  direction: string | null;
   /** Why it was lost or deferred (Drop-off reasons master), with optional details. */
   dropReasonId: number | null;
   dropNote: string;
