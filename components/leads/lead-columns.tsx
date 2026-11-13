@@ -6,6 +6,7 @@ import { UserAvatar } from "@/components/auth/user-avatar";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { FollowUpLabel } from "@/components/leads/follow-up-label";
 import { BandBadge } from "@/components/leads/band-badge";
+import { NotesPopover } from "@/components/leads/notes-popover";
 import { StageBadge } from "@/components/shared/stage-badge";
 import { SOURCE_LABELS, STAGES } from "@/lib/constants";
 import type { LeadRow } from "@/lib/leads/rows";
@@ -40,9 +41,12 @@ export function getLeadColumns(showOwner: boolean) {
       header: ({ column }) => <DataTableColumnHeader column={column} title="Company" />,
       cell: ({ row }) => (
         <div className="min-w-44">
-          <Link href={`/leads/${row.original.id}`} className="font-medium hover:underline">
-            {row.original.companyName}
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link href={`/leads/${row.original.id}`} className="font-medium hover:underline">
+              {row.original.companyName}
+            </Link>
+            {row.original.notes.trim() && <NotesPopover companyName={row.original.companyName} notes={row.original.notes} />}
+          </div>
           <div className="text-xs text-muted-foreground">
             {[row.original.industry, row.original.city].filter(Boolean).join(" · ")}
           </div>

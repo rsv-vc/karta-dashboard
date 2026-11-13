@@ -65,8 +65,8 @@ check("duplicates: short prefixes do not match", findPossibleDuplicates("Zen").l
 
 // DTO shape: nothing sensitive leaks into list rows.
 const leadRowKeys = Object.keys(rows[0]);
-const forbidden = ["pocEmail", "pocPhone", "pocLinkedIn", "notes", "activities", "stageHistory"];
-check("LeadRow has no contact/notes/history fields", forbidden.every((k) => !leadRowKeys.includes(k)));
+const forbidden = ["pocEmail", "pocPhone", "pocLinkedIn", "activities", "stageHistory"];
+check("LeadRow has no contact or history fields (notes show behind an icon)", forbidden.every((k) => !leadRowKeys.includes(k)));
 const dirKeys = Object.keys(toDirectoryRow(toDirectoryEntry(mockLeads[0]), U.priya, nameOf)).sort().join(",");
 check("DirectoryRow keys are exactly the masked set (no stage)", dirKeys === "companyName,id,isMine,ownerId,ownerName,pocName");
 

@@ -53,6 +53,7 @@ test("agent creates a lead through the duplicate warning", async ({ page }) => {
   await expect(page.getByText("1,00,000 min / month").first()).toBeVisible();
   await expect(page.getByText("₹36,00,000").first()).toBeVisible();
   await page.getByLabel("Next step", { exact: true }).fill("Discovery call");
+  await page.getByLabel("Notes", { exact: true }).fill("Met at the fintech summit; wants a Hindi demo");
   await pick(page, "Competitor (optional)", "Haptik");
   await pick(page, "Use case (optional)", "Sales call");
   await pick(page, "Direction (optional)", "Outbound");
@@ -126,11 +127,17 @@ test("admin allocates it, exports CSV and deletes it", async ({ page }) => {
 
   await page.goto(`/leads?q=${encodeURIComponent(COMPANY)}`);
   await settled(page);
+  // Notes sit behind an icon on the list for quick context.
+  await page.getByRole("button", { name: `Notes for ${COMPANY}` }).click();
+  await expect(page.getByRole("dialog").getByText("Met at the fintech summit; wants a Hindi demo")).toBeVisible();
+  await page.keyboard.press("Escape");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("link", { name: "Export CSV" }).click()]);
   const csv = await readFile((await download.path())!, "utf8");
   expect(csv.split("\n")[0]).toContain("Company");
   expect(csv).toContain(COMPANY);
   expect(csv).toContain("Rohan Mehta");
+  expect(csv.split("\n")[0]).toContain("Notes");
+  expect(csv).toContain("Met at the fintech summit; wants a Hindi demo");
 
   // Marking it lost needs a reason from the list; the account page then shows it.
   await page.goto(leadPath);

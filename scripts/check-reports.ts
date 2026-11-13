@@ -48,6 +48,11 @@ check("report CSV has every section", ["Summary", "Agents", "Sources", "Won deal
 check("report CSV money is plain integers (no ₹)", !reportCsv.includes("₹"));
 const leadCsvLines = leadsCsv(mockLeads, nameLookup(mockUsers)).trimEnd().split("\r\n");
 check("leads CSV = header + 75 rows", leadCsvLines.length === 76);
+check("leads CSV ends with a Notes column", leadCsvLines[0].endsWith(",Notes"));
+const noted = mockLeads.find((l) => l.notes.trim())!;
+check("…holding each account's notes", leadsCsv([noted], nameLookup(mockUsers)).includes(/[",\n]/.test(noted.notes) ? `"${noted.notes.replace(/"/g, '""')}"` : noted.notes));
+const tricky = leadsCsv([{ ...noted, notes: 'Line one, "quoted"\nline two' }], nameLookup(mockUsers));
+check("notes with commas, quotes and line breaks stay in one cell", tricky.includes('"Line one, ""quoted""\nline two"'));
 const wonRows = filterLeadRows(mockLeads.map((l) => toLeadRow(l, nameLookup(mockUsers))), { ...DEFAULT_FILTERS, stages: ["revenue_generation"] }).length;
 check(`filtered export size (${wonRows} won)`, wonRows === mockLeads.filter((l) => l.stage === "revenue_generation").length);
 

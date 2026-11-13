@@ -3,7 +3,7 @@ import type { NameOf } from "@/lib/team";
 import type { Lead, LeadDirectoryEntry, LeadStage } from "@/types/lead";
 
 // DTOs sent to Client Components. They carry only what list views render:
-// no contact details, notes, activities or stage history. The detail page
+// no contact details, activities or stage history (notes show behind an icon). The detail page
 // fetches those itself, after its own permission check.
 
 export type LeadRow = Pick<
@@ -20,6 +20,7 @@ export type LeadRow = Pick<
   | "dealValue"
   | "volume"
   | "nextStep"
+  | "notes"
   | "competitor"
   | "useCase"
   | "direction"
@@ -47,6 +48,7 @@ export function toLeadRow(lead: Lead, nameOf: NameOf, points: Record<LeadStage, 
     dealValue: lead.dealValue,
     volume: lead.volume,
     nextStep: lead.nextStep,
+    notes: lead.notes,
     competitor: lead.competitor,
     useCase: lead.useCase,
     direction: lead.direction,

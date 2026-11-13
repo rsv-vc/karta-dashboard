@@ -1,3 +1,4 @@
+import { NotebookTextIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { UserAvatar } from "@/components/auth/user-avatar";
@@ -50,6 +51,16 @@ export function LeadCardList({
                 <FollowUpLabel date={r.nextFollowUpAt} />
               </span>
             </div>
+            {r.notes.trim() && (
+              // The whole card is a link, so the notes show inline (two lines) rather than behind a button.
+              <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                <NotebookTextIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <span className="line-clamp-2 break-words">
+                  <span className="sr-only">Notes: </span>
+                  {r.notes}
+                </span>
+              </p>
+            )}
             {showOwner && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <UserAvatar name={r.ownerName} className="size-5" />
